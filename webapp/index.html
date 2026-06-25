@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f6fb">
+    <title>Фокус — обучение</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button id="backButton" class="back-button" type="button" aria-label="Назад" hidden>
+          <span aria-hidden="true">←</span>
+        </button>
+        <div>
+          <p id="eyebrow" class="eyebrow">Мини-курс</p>
+          <h1 id="pageTitle">Модули курса</h1>
+        </div>
+      </header>
+
+      <p id="pageSubtitle" class="page-subtitle">
+        Выберите модуль, чтобы увидеть уроки.
+      </p>
+
+      <main id="content" class="content" aria-live="polite"></main>
+
+      <noscript>
+        <p class="empty-state">Для просмотра уроков включите JavaScript.</p>
+      </noscript>
+    </div>
+  </body>
+</html>
