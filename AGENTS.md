@@ -2,7 +2,7 @@
 
 ## Текущее состояние проекта
 
-Проект представляет собой Telegram-бот для ежедневного планирования, шаблонной подготовки идей роликов и запуска обучающего Mini App с простым backend и админ-панелью. Код бота находится в `bot.py`, backend — в `server.py` и `database.py`, интерфейс Mini App — в `webapp/`, зависимости — в `requirements.txt`, а инструкции — в `README.md`.
+Проект представляет собой Telegram-бот для ежедневного планирования, шаблонной подготовки идей роликов и запуска обучающего Mini App с простым backend и админ-панелью. Код бота находится в `bot.py`, backend — в `server.py` и `database.py`, единый запуск для деплоя — в `start.py`, интерфейс Mini App — в `webapp/`, зависимости — в `requirements.txt`, а инструкции — в `README.md`.
 
 ## Стек проекта
 
@@ -13,6 +13,7 @@
 - Хранилище данных курса: SQLite через стандартный модуль `sqlite3`; файл по умолчанию `course.db`.
 - Хранилище дневных планов бота: словарь в памяти процесса; отдельной базы для планов нет.
 - Менеджер зависимостей: `pip`, зависимости зафиксированы в `requirements.txt`.
+- Деплой: Railway запускает backend и Telegram-бота одной командой `python start.py`.
 - Автоматические тесты, линтер и форматтер пока не настроены.
 - Отдельная сборка и контейнеризация не требуются.
 - Mini App: HTML, CSS и JavaScript без сборщика; данные курса загружаются через API backend.
@@ -26,23 +27,22 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 Copy-Item .env.example .env
-python server.py
-python bot.py
+python start.py
 ```
 
 Синтаксическая самопроверка:
 
 ```powershell
-python -m py_compile bot.py database.py server.py
+python -m py_compile bot.py database.py server.py start.py
 ```
 
-Локальный backend, Mini App и админ-панель:
+Локальный запуск всего проекта:
 
 ```powershell
-python server.py
+python start.py
 ```
 
-После запуска откройте `http://127.0.0.1:8000` для Mini App и `http://127.0.0.1:8000/admin` для админки.
+После запуска откройте `http://127.0.0.1:8000` для Mini App и `http://127.0.0.1:8000/admin` для админки. На Railway задайте `DATABASE_PATH=/data/course.db` и подключите Volume с mount path `/data`.
 
 Отдельной команды сборки нет.
 
