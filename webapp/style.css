@@ -23,6 +23,24 @@ button {
   font: inherit;
 }
 
+input,
+select,
+textarea {
+  width: 100%;
+  margin-top: 7px;
+  padding: 12px 13px;
+  border: 1px solid var(--tg-theme-section-separator-color, #dfe3ed);
+  border-radius: 13px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #172033);
+  font: inherit;
+}
+
+textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
 .app-shell {
   width: min(100%, 760px);
   min-height: 100vh;
@@ -169,6 +187,127 @@ h1 {
   line-height: 1.5;
 }
 
+.empty-state strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--tg-theme-text-color, #172033);
+}
+
+.empty-state p {
+  margin: 0 0 14px;
+}
+
+.primary-button,
+.secondary-button,
+.danger-button,
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 11px 15px;
+  border: 0;
+  border-radius: 13px;
+  font-weight: 720;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary-button {
+  background: var(--tg-theme-button-color, #5269ff);
+  color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+.secondary-button,
+.secondary-link {
+  border: 1px solid var(--tg-theme-section-separator-color, #dfe3ed);
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #172033);
+}
+
+.danger-button {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.lesson-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.admin-shell {
+  width: min(100%, 980px);
+}
+
+.admin-header,
+.panel-title-row,
+.actions-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-header {
+  margin-bottom: 22px;
+}
+
+.panel,
+.admin-card,
+.lesson-editor {
+  padding: 20px;
+  border: 1px solid var(--tg-theme-section-separator-color, #dfe3ed);
+  border-radius: 20px;
+  background: var(--tg-theme-bg-color, #ffffff);
+  box-shadow: 0 12px 30px rgba(29, 42, 75, 0.06);
+}
+
+.panel h2,
+.admin-card h3,
+.lesson-editor h4 {
+  margin: 0 0 16px;
+}
+
+.admin-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.stack-form,
+.course-editor,
+.admin-card,
+.lesson-editor {
+  display: grid;
+  gap: 13px;
+}
+
+.wide-panel {
+  grid-column: 1 / -1;
+}
+
+.status {
+  min-height: 1.5em;
+  margin: 0;
+  color: #15803d;
+}
+
+.status.error {
+  color: #b91c1c;
+}
+
+.muted {
+  margin: 0;
+  color: var(--tg-theme-subtitle-text-color, #687086);
+}
+
+code {
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(82, 105, 255, 0.1);
+}
+
 @media (min-width: 620px) {
   .app-shell {
     padding-right: 28px;
@@ -177,6 +316,20 @@ h1 {
 
   .content.cards-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 619px) {
+  .admin-header,
+  .panel-title-row,
+  .actions-row,
+  .lesson-navigation {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 

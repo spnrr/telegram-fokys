@@ -1,71 +1,5 @@
 "use strict";
 
-const courseModules = [
-  {
-    id: "focus-basics",
-    title: "Осознанный фокус",
-    description: "Как выбирать главное и не распыляться в течение дня.",
-    lessons: [
-      {
-        id: "one-priority",
-        title: "Одна главная задача",
-        summary: "Почему один ясный приоритет сильнее длинного списка дел.",
-        content:
-          "Фокус начинается не с таймера, а с выбора. Когда все задачи объявлены одинаково важными, внимание постоянно переключается и устает.\n\nВыберите один результат, после которого день уже можно считать полезным. Сформулируйте его как конкретное действие: не «заняться проектом», а «подготовить и отправить первую версию». Остальные дела остаются в списке, но не конкурируют за первое место.",
-      },
-      {
-        id: "small-steps",
-        title: "Три маленьких шага",
-        summary: "Как превратить большую задачу в понятное начало.",
-        content:
-          "Большая задача пугает, пока у нее нет первого физического действия. Разделите ее на три шага, каждый из которых можно начать без дополнительного планирования.\n\nХороший шаг отвечает на вопрос «что именно я сделаю?». Например: открыть документ, составить пять тезисов, написать первый абзац. Если шаг все еще хочется отложить, сделайте его еще меньше.",
-      },
-    ],
-  },
-  {
-    id: "deep-work",
-    title: "Спокойная работа",
-    description: "Простые условия для концентрации без героических усилий.",
-    lessons: [
-      {
-        id: "remove-noise",
-        title: "Убрать лишний шум",
-        summary: "Подготовьте окружение до начала фокус-сессии.",
-        content:
-          "Сила воли быстро заканчивается, а окружение работает постоянно. Перед началом закройте лишние вкладки, выключите уведомления и оставьте рядом только то, что нужно для текущего шага.\n\nТакое приготовление занимает пару минут, но уменьшает число решений во время работы. Чем меньше поводов отвлечься видно перед глазами, тем легче вернуться к задаче после случайной мысли.",
-      },
-      {
-        id: "focus-session",
-        title: "Короткая фокус-сессия",
-        summary: "Работайте ограниченный отрезок времени с ясным результатом.",
-        content:
-          "Назначьте короткий отрезок — например, 25 минут — и заранее определите, что должно быть готово к его концу. Таймер нужен не для давления, а для понятной границы.\n\nВо время сессии записывайте посторонние мысли на отдельный лист вместо того, чтобы сразу на них реагировать. После сигнала сделайте паузу и решите, нужна ли еще одна сессия.",
-      },
-    ],
-  },
-  {
-    id: "daily-review",
-    title: "Завершение дня",
-    description: "Как подвести итог без чувства вины и сохранить ясность.",
-    lessons: [
-      {
-        id: "honest-check",
-        title: "Честная проверка",
-        summary: "Отделяйте результат от самооценки.",
-        content:
-          "Вечерняя проверка отвечает на простой вопрос: получен ли выбранный результат? Ответ «нет» не делает день провальным и не требует оправданий. Он дает данные для следующего решения.\n\nЕсли задача выполнена, зафиксируйте, что помогло. Если нет — определите препятствие: задача была слишком большой, день изменился или внимание ушло в другое место. Это полезнее общей критики себя.",
-      },
-      {
-        id: "close-loop",
-        title: "Закрыть незавершенное",
-        summary: "Осознанно завершите, упростите или перенесите задачу.",
-        content:
-          "Незавершенная задача продолжает занимать внимание, если у нее нет следующего решения. В конце дня выберите один вариант: завершить маленький остаток, удалить потерявшую смысл задачу или назначить конкретный следующий шаг на завтра.\n\nЗапишите решение там, где увидите его утром. После этого работу можно отпустить: вам не нужно удерживать ее в памяти весь вечер.",
-      },
-    ],
-  },
-];
-
 const telegram = window.Telegram?.WebApp;
 const content = document.querySelector("#content");
 const pageTitle = document.querySelector("#pageTitle");
@@ -74,8 +8,10 @@ const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
 
 const state = {
-  moduleId: null,
-  lessonId: null,
+  modules: [],
+  lessonsByModule: new Map(),
+  currentModuleId: null,
+  currentLessonId: null,
 };
 
 function setHeader(label, title, subtitle) {
@@ -85,7 +21,7 @@ function setHeader(label, title, subtitle) {
 }
 
 function syncBackButtons() {
-  const canGoBack = state.moduleId !== null;
+  const canGoBack = state.currentModuleId !== null;
   backButton.hidden = !canGoBack;
 
   if (!telegram?.BackButton) {
@@ -96,6 +32,45 @@ function syncBackButtons() {
   } else {
     telegram.BackButton.hide();
   }
+}
+
+function showMessage(title, message, actionLabel = "", action = null) {
+  content.className = "content";
+  content.replaceChildren();
+
+  const block = document.createElement("section");
+  block.className = "empty-state";
+
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+
+  const text = document.createElement("p");
+  text.textContent = message;
+
+  block.append(heading, text);
+
+  if (actionLabel && action) {
+    const button = document.createElement("button");
+    button.className = "secondary-button";
+    button.type = "button";
+    button.textContent = actionLabel;
+    button.addEventListener("click", action);
+    block.append(button);
+  }
+
+  content.append(block);
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: { Accept: "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `Ошибка запроса: ${response.status}`);
+  }
+  return response.json();
 }
 
 function createCard(title, description, meta, onClick) {
@@ -125,61 +100,194 @@ function createCard(title, description, meta, onClick) {
   return button;
 }
 
-function renderModules() {
-  state.moduleId = null;
-  state.lessonId = null;
+async function loadModules() {
+  state.modules = await fetchJson("/api/modules");
+}
+
+async function loadLessons(moduleId) {
+  if (!state.lessonsByModule.has(moduleId)) {
+    const lessons = await fetchJson(`/api/modules/${moduleId}/lessons`);
+    state.lessonsByModule.set(moduleId, lessons);
+  }
+  return state.lessonsByModule.get(moduleId);
+}
+
+function getLessons(moduleId) {
+  return state.lessonsByModule.get(moduleId) || [];
+}
+
+function getLessonPosition(moduleId, lessonId) {
+  const moduleIndex = state.modules.findIndex((module) => module.id === moduleId);
+  const lessons = getLessons(moduleId);
+  const lessonIndex = lessons.findIndex((lesson) => lesson.id === lessonId);
+  return { moduleIndex, lessonIndex };
+}
+
+async function findAdjacentLesson(direction) {
+  const { moduleIndex, lessonIndex } = getLessonPosition(
+    state.currentModuleId,
+    state.currentLessonId
+  );
+  if (moduleIndex === -1 || lessonIndex === -1) {
+    return null;
+  }
+
+  const currentLessons = getLessons(state.currentModuleId);
+  const nextLessonIndex = lessonIndex + direction;
+  if (currentLessons[nextLessonIndex]) {
+    return { module: state.modules[moduleIndex], lesson: currentLessons[nextLessonIndex] };
+  }
+
+  let nextModuleIndex = moduleIndex + direction;
+  while (state.modules[nextModuleIndex]) {
+    const nextModule = state.modules[nextModuleIndex];
+    const lessons = await loadLessons(nextModule.id);
+    if (lessons.length > 0) {
+      const lesson = direction > 0 ? lessons[0] : lessons[lessons.length - 1];
+      return { module: nextModule, lesson };
+    }
+    nextModuleIndex += direction;
+  }
+  return null;
+}
+
+async function renderModules() {
+  state.currentModuleId = null;
+  state.currentLessonId = null;
+  state.lessonsByModule.clear();
   content.className = "content cards-grid";
   content.replaceChildren();
   setHeader("Мини-курс", "Модули курса", "Выберите модуль, чтобы увидеть уроки.");
 
-  courseModules.forEach((module) => {
-    const lessonsLabel = `${module.lessons.length} урока`;
+  try {
+    await loadModules();
+  } catch (error) {
+    showMessage("Не удалось загрузить курс", error.message, "Повторить", renderModules);
+    syncBackButtons();
+    return;
+  }
+
+  if (state.modules.length === 0) {
+    showMessage(
+      "Курс пока пуст",
+      "Добавьте первый модуль и урок через админ-панель, затем обновите эту страницу."
+    );
+    syncBackButtons();
+    return;
+  }
+
+  state.modules.forEach((module) => {
+    const count = Number(module.lessons_count || 0);
+    const lessonsLabel = `${count} ${count === 1 ? "урок" : "уроков"}`;
     content.append(
-      createCard(module.title, module.description, lessonsLabel, () => renderLessons(module))
+      createCard(module.title, "Откройте модуль, чтобы увидеть уроки.", lessonsLabel, () =>
+        renderLessons(module.id)
+      )
     );
   });
   syncBackButtons();
 }
 
-function renderLessons(module) {
-  state.moduleId = module.id;
-  state.lessonId = null;
+async function renderLessons(moduleId) {
+  const module = state.modules.find((item) => item.id === moduleId);
+  if (!module) {
+    await renderModules();
+    return;
+  }
+
+  state.currentModuleId = moduleId;
+  state.currentLessonId = null;
   content.className = "content";
   content.replaceChildren();
-  setHeader("Модуль", module.title, module.description);
+  setHeader("Модуль", module.title, "Выберите урок, чтобы открыть текст.");
 
-  module.lessons.forEach((lesson, index) => {
-    content.append(
-      createCard(lesson.title, lesson.summary, `Урок ${index + 1}`, () => {
-        renderLesson(module, lesson);
-      })
+  try {
+    const lessons = await loadLessons(moduleId);
+    if (lessons.length === 0) {
+      showMessage("В модуле пока нет уроков", "Добавьте урок через админ-панель.");
+      syncBackButtons();
+      return;
+    }
+
+    lessons.forEach((lesson, index) => {
+      content.append(
+        createCard(lesson.title, "Открыть текст урока.", `Урок ${index + 1}`, () => {
+          renderLesson(moduleId, lesson.id);
+        })
+      );
+    });
+  } catch (error) {
+    showMessage("Не удалось загрузить уроки", error.message, "Повторить", () =>
+      renderLessons(moduleId)
     );
-  });
+  }
   syncBackButtons();
 }
 
-function renderLesson(module, lesson) {
-  state.moduleId = module.id;
-  state.lessonId = lesson.id;
-  content.className = "content";
-  content.replaceChildren();
-  setHeader(module.title, lesson.title, lesson.summary);
-
-  const article = document.createElement("article");
-  article.className = "lesson";
-  lesson.content.split("\n\n").forEach((paragraph) => {
+function renderParagraphs(container, text) {
+  const paragraphs = text.split(/\n{2,}/).filter(Boolean);
+  paragraphs.forEach((paragraph) => {
     const paragraphElement = document.createElement("p");
     paragraphElement.textContent = paragraph;
-    article.append(paragraphElement);
+    container.append(paragraphElement);
   });
-  content.append(article);
+}
+
+async function renderLesson(moduleId, lessonId) {
+  const module = state.modules.find((item) => item.id === moduleId);
+  state.currentModuleId = moduleId;
+  state.currentLessonId = lessonId;
+  content.className = "content";
+  content.replaceChildren();
+  setHeader(module?.title || "Урок", "Загрузка урока…", "Подождите несколько секунд.");
+
+  try {
+    const lesson = await fetchJson(`/api/lessons/${lessonId}`);
+    setHeader(lesson.module_title || module?.title || "Урок", lesson.title, "Читайте в удобном темпе.");
+
+    const article = document.createElement("article");
+    article.className = "lesson";
+    renderParagraphs(article, lesson.content);
+
+    const navigation = document.createElement("div");
+    navigation.className = "lesson-navigation";
+
+    const previous = await findAdjacentLesson(-1);
+    const next = await findAdjacentLesson(1);
+
+    if (previous) {
+      const previousButton = document.createElement("button");
+      previousButton.className = "secondary-button";
+      previousButton.type = "button";
+      previousButton.textContent = "← Предыдущий урок";
+      previousButton.addEventListener("click", () =>
+        renderLesson(previous.module.id, previous.lesson.id)
+      );
+      navigation.append(previousButton);
+    }
+
+    if (next) {
+      const nextButton = document.createElement("button");
+      nextButton.className = "primary-button";
+      nextButton.type = "button";
+      nextButton.textContent = "Следующий урок →";
+      nextButton.addEventListener("click", () => renderLesson(next.module.id, next.lesson.id));
+      navigation.append(nextButton);
+    }
+
+    content.append(article);
+    if (navigation.children.length > 0) {
+      content.append(navigation);
+    }
+  } catch (error) {
+    showMessage("Не удалось открыть урок", error.message, "Вернуться к модулям", renderModules);
+  }
   syncBackButtons();
 }
 
 function goBack() {
-  const module = courseModules.find((item) => item.id === state.moduleId);
-  if (state.lessonId !== null && module) {
-    renderLessons(module);
+  if (state.currentLessonId !== null && state.currentModuleId !== null) {
+    renderLessons(state.currentModuleId);
     return;
   }
   renderModules();

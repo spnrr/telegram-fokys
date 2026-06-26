@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админка курса</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <div class="app-shell admin-shell">
+      <header class="admin-header">
+        <div>
+          <p class="eyebrow">Админ-панель</p>
+          <h1>Курс Mini App</h1>
+          <p class="page-subtitle">
+            Добавляйте, редактируйте и удаляйте модули и уроки. Пароль берётся из
+            переменной <code>ADMIN_PASSWORD</code>.
+          </p>
+        </div>
+        <a class="secondary-link" href="/">Открыть курс</a>
+      </header>
+
+      <section id="loginPanel" class="panel">
+        <h2>Вход</h2>
+        <form id="loginForm" class="stack-form">
+          <label>
+            Пароль администратора
+            <input id="passwordInput" type="password" autocomplete="current-password" required>
+          </label>
+          <button class="primary-button" type="submit">Войти</button>
+        </form>
+      </section>
+
+      <section id="adminPanel" class="admin-grid" hidden>
+        <article class="panel">
+          <h2>Создать модуль</h2>
+          <form id="moduleForm" class="stack-form">
+            <label>
+              Название модуля
+              <input id="moduleTitle" type="text" maxlength="160" required>
+            </label>
+            <button class="primary-button" type="submit">Добавить модуль</button>
+          </form>
+        </article>
+
+        <article class="panel">
+          <h2>Создать урок</h2>
+          <form id="lessonForm" class="stack-form">
+            <label>
+              Модуль
+              <select id="lessonModule" required></select>
+            </label>
+            <label>
+              Название урока
+              <input id="lessonTitle" type="text" maxlength="160" required>
+            </label>
+            <label>
+              Текст урока
+              <textarea id="lessonContent" rows="8" required></textarea>
+            </label>
+            <button class="primary-button" type="submit">Добавить урок</button>
+          </form>
+        </article>
+
+        <article class="panel wide-panel">
+          <div class="panel-title-row">
+            <h2>Модули и уроки</h2>
+            <button id="logoutButton" class="secondary-button" type="button">Выйти</button>
+          </div>
+          <p id="status" class="status" role="status"></p>
+          <div id="courseEditor" class="course-editor"></div>
+        </article>
+      </section>
+    </div>
+
+    <script>
+      "use strict";
+
+      const loginPanel = document.querySelector("#loginPanel");
+      const adminPanel = document.querySelector("#adminPanel");
+      const loginForm = document.querySelector("#loginForm");
+      const passwordInput = document.querySelector("#passwordInput");
+      const moduleForm = document.querySelector("#moduleForm");
+      const moduleTitle = document.querySelector("#moduleTitle");
+      const lessonForm = document.querySelector("#lessonForm");
+      const lessonModule = document.querySelector("#lessonModule");
+      const lessonTitle = document.querySelector("#lessonTitle");
+      const lessonContent = document.querySelector("#lessonContent");
+      const courseEditor = document.querySelector("#courseEditor");
+      const status = document.querySelector("#status");
+      const logoutButton = document.querySelector("#logoutButton");
+
+      let adminPassword = sessionStorage.getItem("courseAdminPassword") || "";
+      let modules = [];
+      let lessons = [];
+
+      function setStatus(message, isError = false) {
+        status.textContent = message;
+        status.classList.toggle("error", isError);
+      }
+
+      async function requestJson(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-Admin-Password": adminPassword,
+            ...(options.headers || {}),
+          },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error || `Ошибка запроса: ${response.status}`);
+        }
+        return payload;
+      }
+
+      function createOption(module) {
+        const option = document.createElement("option");
+        option.value = String(module.id);
+        option.textContent = module.title;
+        return option;
+      }
+
+      function renderModuleSelect() {
+        lessonModule.replaceChildren();
+        modules.forEach((module) => lessonModule.append(createOption(module)));
+        lessonModule.disabled = modules.length === 0;
+      }
+
+      function createField(labelText, value, elementType = "input") {
+        const label = document.createElement("label");
+        label.textContent = labelText;
+        const field = document.createElement(elementType);
+        if (elementType === "textarea") {
+          field.rows = 6;
+        } else {
+          field.type = "text";
+          field.maxLength = 160;
+        }
+        field.value = value;
+        label.append(field);
+        return { label, field };
+      }
+
+      function renderEditor() {
+        renderModuleSelect();
+        courseEditor.replaceChildren();
+
+        if (modules.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = "Пока нет модулей. Создайте первый модуль выше.";
+          courseEditor.append(empty);
+          return;
+        }
+
+        modules.forEach((module) => {
+          const moduleBlock = document.createElement("section");
+          moduleBlock.className = "admin-card";
+
+          const moduleHeading = document.createElement("h3");
+          moduleHeading.textContent = `Модуль #${module.id}`;
+
+          const { label: moduleLabel, field: moduleInput } = createField(
+            "Название модуля",
+            module.title
+          );
+
+          const moduleActions = document.createElement("div");
+          moduleActions.className = "actions-row";
+
+          const saveModuleButton = document.createElement("button");
+          saveModuleButton.className = "primary-button";
+          saveModuleButton.type = "button";
+          saveModuleButton.textContent = "Сохранить модуль";
+          saveModuleButton.addEventListener("click", async () => {
+            await requestJson(`/api/admin/modules/${module.id}`, {
+              method: "PUT",
+              body: JSON.stringify({ title: moduleInput.value }),
+            });
+            setStatus("Модуль обновлён.");
+            await loadData();
+          });
+
+          const deleteModuleButton = document.createElement("button");
+          deleteModuleButton.className = "danger-button";
+          deleteModuleButton.type = "button";
+          deleteModuleButton.textContent = "Удалить модуль";
+          deleteModuleButton.addEventListener("click", async () => {
+            if (!confirm("Удалить модуль вместе со всеми уроками?")) {
+              return;
+            }
+            await requestJson(`/api/admin/modules/${module.id}`, { method: "DELETE" });
+            setStatus("Модуль удалён.");
+            await loadData();
+          });
+
+          moduleActions.append(saveModuleButton, deleteModuleButton);
+          moduleBlock.append(moduleHeading, moduleLabel, moduleActions);
+
+          const moduleLessons = lessons.filter((lesson) => lesson.module_id === module.id);
+          if (moduleLessons.length === 0) {
+            const noLessons = document.createElement("p");
+            noLessons.className = "muted";
+            noLessons.textContent = "В этом модуле пока нет уроков.";
+            moduleBlock.append(noLessons);
+          }
+
+          moduleLessons.forEach((lesson) => {
+            const lessonBlock = document.createElement("div");
+            lessonBlock.className = "lesson-editor";
+
+            const lessonHeading = document.createElement("h4");
+            lessonHeading.textContent = `Урок #${lesson.id}`;
+
+            const { label: titleLabel, field: titleInput } = createField(
+              "Название урока",
+              lesson.title
+            );
+            const { label: contentLabel, field: contentInput } = createField(
+              "Текст урока",
+              lesson.content,
+              "textarea"
+            );
+
+            const lessonActions = document.createElement("div");
+            lessonActions.className = "actions-row";
+
+            const saveLessonButton = document.createElement("button");
+            saveLessonButton.className = "primary-button";
+            saveLessonButton.type = "button";
+            saveLessonButton.textContent = "Сохранить урок";
+            saveLessonButton.addEventListener("click", async () => {
+              await requestJson(`/api/admin/lessons/${lesson.id}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                  module_id: lesson.module_id,
+                  title: titleInput.value,
+                  content: contentInput.value,
+                }),
+              });
+              setStatus("Урок обновлён.");
+              await loadData();
+            });
+
+            const deleteLessonButton = document.createElement("button");
+            deleteLessonButton.className = "danger-button";
+            deleteLessonButton.type = "button";
+            deleteLessonButton.textContent = "Удалить урок";
+            deleteLessonButton.addEventListener("click", async () => {
+              if (!confirm("Удалить урок?")) {
+                return;
+              }
+              await requestJson(`/api/admin/lessons/${lesson.id}`, { method: "DELETE" });
+              setStatus("Урок удалён.");
+              await loadData();
+            });
+
+            lessonActions.append(saveLessonButton, deleteLessonButton);
+            lessonBlock.append(lessonHeading, titleLabel, contentLabel, lessonActions);
+            moduleBlock.append(lessonBlock);
+          });
+
+          courseEditor.append(moduleBlock);
+        });
+      }
+
+      async function loadData() {
+        try {
+          modules = await requestJson("/api/admin/modules");
+          lessons = await requestJson("/api/admin/lessons");
+          renderEditor();
+        } catch (error) {
+          setStatus(error.message, true);
+          loginPanel.hidden = false;
+          adminPanel.hidden = true;
+          sessionStorage.removeItem("courseAdminPassword");
+        }
+      }
+
+      async function enterAdmin() {
+        loginPanel.hidden = true;
+        adminPanel.hidden = false;
+        await loadData();
+      }
+
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        adminPassword = passwordInput.value;
+        sessionStorage.setItem("courseAdminPassword", adminPassword);
+        setStatus("");
+        await enterAdmin();
+      });
+
+      logoutButton.addEventListener("click", () => {
+        adminPassword = "";
+        sessionStorage.removeItem("courseAdminPassword");
+        loginPanel.hidden = false;
+        adminPanel.hidden = true;
+      });
+
+      moduleForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await requestJson("/api/admin/modules", {
+          method: "POST",
+          body: JSON.stringify({ title: moduleTitle.value }),
+        });
+        moduleTitle.value = "";
+        setStatus("Модуль создан.");
+        await loadData();
+      });
+
+      lessonForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        await requestJson("/api/admin/lessons", {
+          method: "POST",
+          body: JSON.stringify({
+            module_id: Number(lessonModule.value),
+            title: lessonTitle.value,
+            content: lessonContent.value,
+          }),
+        });
+        lessonTitle.value = "";
+        lessonContent.value = "";
+        setStatus("Урок создан.");
+        await loadData();
+      });
+
+      if (adminPassword) {
+        enterAdmin();
+      }
+    </script>
+  </body>
+</html>

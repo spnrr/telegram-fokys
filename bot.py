@@ -94,11 +94,6 @@ def build_content_plan(topic: str) -> str:
         f"{number}. {template.format(topic=topic)}"
         for number, template in enumerate(CONTENT_HOOK_TEMPLATES, start=1)
     )
-
-
-def is_valid_webapp_url(url: str) -> bool:
-    parsed = urlparse(url)
-    return parsed.scheme == "https" and bool(parsed.netloc)
     return (
         f"Идея ролика на тему «{topic}»\n\n"
         "1. Боль аудитории\n"
@@ -115,6 +110,15 @@ def is_valid_webapp_url(url: str) -> bool:
         f"CTA: предложи сохранить ролик и написать, какой первый шаг по теме «{topic}» "
         "зритель сделает сегодня."
     )
+
+
+def is_valid_webapp_url(url: str) -> bool:
+    parsed = urlparse(url)
+    return parsed.scheme == "https" and bool(parsed.netloc)
+
+
+def build_admin_url(webapp_url: str) -> str:
+    return f"{webapp_url.rstrip('/')}/admin"
 
 
 async def start(update: Update, context: CallbackContext) -> None:
@@ -144,6 +148,7 @@ async def help_command(update: Update, context: CallbackContext) -> None:
         "/check — отметить выполнение задачи\n"
         "/content — подготовить идею и структуру ролика\n"
         "/app — открыть обучающее Mini App\n"
+        "/admin — получить ссылку на админ-панель курса\n"
         "/cancel — отменить текущий диалог\n\n"
         "Основные действия также доступны на постоянной клавиатуре."
     )
@@ -317,6 +322,28 @@ async def open_app(update: Update, context: CallbackContext) -> None:
     )
 
 
+async def open_admin(update: Update, context: CallbackContext) -> None:
+    if update.message is None:
+        return
+
+    webapp_url = str(context.application.bot_data.get("webapp_url", "")).strip()
+    if not is_valid_webapp_url(webapp_url):
+        await update.message.reply_text(
+            "Админ-панель пока не настроена. Добавьте публичный HTTPS-адрес в WEBAPP_URL "
+            "и перезапустите бота."
+        )
+        return
+
+    admin_url = build_admin_url(webapp_url)
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton("Открыть админ-панель", url=admin_url)]]
+    )
+    await update.message.reply_text(
+        "Админ-панель курса открывается по ссылке ниже. Пароль берётся из ADMIN_PASSWORD.",
+        reply_markup=keyboard,
+    )
+
+
 async def handle_check_result(update: Update, context: CallbackContext) -> None:
     del context
     query = update.callback_query
@@ -386,6 +413,7 @@ def build_application(token: str, webapp_url: str = "") -> Application:
     application.add_handler(CommandHandler("focus", focus))
     application.add_handler(CommandHandler("check", check))
     application.add_handler(CommandHandler("app", open_app))
+    application.add_handler(CommandHandler("admin", open_admin))
     application.add_handler(MessageHandler(filters.Regex(rf"^{FOCUS_BUTTON}$"), focus))
     application.add_handler(MessageHandler(filters.Regex(rf"^{CHECK_BUTTON}$"), check))
     application.add_handler(
