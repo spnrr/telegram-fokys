@@ -13,7 +13,7 @@
           <p class="eyebrow">Админ-панель</p>
           <h1>Курс Mini App</h1>
           <p class="page-subtitle">
-            Добавляйте, редактируйте и удаляйте модули и уроки. Пароль берётся из
+            Управляйте ступенями, уроками и блоками урока. Пароль берётся из
             переменной <code>ADMIN_PASSWORD</code>.
           </p>
         </div>
@@ -55,8 +55,8 @@
               <input id="lessonTitle" type="text" maxlength="160" required>
             </label>
             <label>
-              Текст урока
-              <textarea id="lessonContent" rows="8" required></textarea>
+              Первый текстовый блок
+              <textarea id="lessonContent" rows="6" placeholder="Можно оставить пустым и добавить блоки позже"></textarea>
             </label>
             <button class="primary-button" type="submit">Добавить урок</button>
           </form>
@@ -93,10 +93,21 @@
       let adminPassword = sessionStorage.getItem("courseAdminPassword") || "";
       let modules = [];
       let lessons = [];
+      let blocksByLesson = new Map();
 
       function setStatus(message, isError = false) {
         status.textContent = message;
         status.classList.toggle("error", isError);
+      }
+
+      function getBlockTypeLabel(type) {
+        if (type === "image") {
+          return "Изображение";
+        }
+        if (type === "video") {
+          return "Видео";
+        }
+        return "Текст";
       }
 
       async function requestJson(url, options = {}) {
@@ -139,9 +150,280 @@
           field.type = "text";
           field.maxLength = 160;
         }
-        field.value = value;
+        field.value = value || "";
         label.append(field);
         return { label, field };
+      }
+
+      function createBlockTypeSelect(value) {
+        const select = document.createElement("select");
+        ["text", "image", "video"].forEach((type) => {
+          const option = document.createElement("option");
+          option.value = type;
+          option.textContent = getBlockTypeLabel(type);
+          option.selected = type === value;
+          select.append(option);
+        });
+        return select;
+      }
+
+      function validateBlock(type, value) {
+        const content = value.trim();
+        if (type === "text" && !content) {
+          throw new Error("Текстовый блок не должен быть пустым.");
+        }
+        if ((type === "image" || type === "video") && !/^https?:\/\//.test(content)) {
+          throw new Error("Ссылка должна начинаться с http:// или https://.");
+        }
+        return content;
+      }
+
+      function getRealBlocks(lessonId) {
+        return (blocksByLesson.get(lessonId) || []).filter((block) => block.id !== null);
+      }
+
+      async function ensureLegacyConverted(lessonId) {
+        const blocks = blocksByLesson.get(lessonId) || [];
+        if (blocks.length !== 1 || blocks[0].id !== null) {
+          return;
+        }
+        await requestJson(`/api/admin/lessons/${lessonId}/blocks`, {
+          method: "POST",
+          body: JSON.stringify({ type: "text", content: blocks[0].content }),
+        });
+      }
+
+      async function addBlock(lessonId, type, rawContent) {
+        const content = validateBlock(type, rawContent);
+        await ensureLegacyConverted(lessonId);
+        await requestJson(`/api/admin/lessons/${lessonId}/blocks`, {
+          method: "POST",
+          body: JSON.stringify({ type, content }),
+        });
+        setStatus("Блок добавлен.");
+        await loadData();
+      }
+
+      async function moveBlock(lessonId, blockId, direction) {
+        const blocks = getRealBlocks(lessonId);
+        const index = blocks.findIndex((block) => block.id === blockId);
+        const nextIndex = index + direction;
+        if (index === -1 || nextIndex < 0 || nextIndex >= blocks.length) {
+          return;
+        }
+        const reordered = [...blocks];
+        [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+        await requestJson(`/api/admin/lessons/${lessonId}/blocks/reorder`, {
+          method: "POST",
+          body: JSON.stringify({ block_ids: reordered.map((block) => block.id) }),
+        });
+        setStatus("Порядок блоков обновлён.");
+        await loadData();
+      }
+
+      function renderAddBlockForm(container, lessonId) {
+        const form = document.createElement("form");
+        form.className = "block-add-form";
+
+        const typeLabel = document.createElement("label");
+        typeLabel.textContent = "Тип блока";
+        const typeSelect = createBlockTypeSelect("text");
+        typeLabel.append(typeSelect);
+
+        const contentLabel = document.createElement("label");
+        contentLabel.textContent = "Содержимое блока";
+        const contentInput = document.createElement("textarea");
+        contentInput.rows = 4;
+        contentInput.placeholder = "Текст блока или ссылка на фото/видео";
+        contentLabel.append(contentInput);
+
+        const addButton = document.createElement("button");
+        addButton.className = "secondary-button";
+        addButton.type = "submit";
+        addButton.textContent = "Добавить блок";
+
+        form.append(typeLabel, contentLabel, addButton);
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          try {
+            await addBlock(lessonId, typeSelect.value, contentInput.value);
+          } catch (error) {
+            setStatus(error.message, true);
+          }
+        });
+        container.append(form);
+      }
+
+      function renderBlockEditor(container, lesson, block, index, totalRealBlocks) {
+        const blockEditor = document.createElement("div");
+        blockEditor.className = "block-editor";
+
+        const header = document.createElement("div");
+        header.className = "block-editor-header";
+
+        const title = document.createElement("h5");
+        title.textContent = block.id === null ? "Старый текст урока" : `Блок ${index + 1}`;
+
+        const orderActions = document.createElement("div");
+        orderActions.className = "mini-actions";
+
+        if (block.id !== null) {
+          const upButton = document.createElement("button");
+          upButton.className = "icon-button";
+          upButton.type = "button";
+          upButton.textContent = "↑";
+          upButton.disabled = index === 0;
+          upButton.addEventListener("click", () => moveBlock(lesson.id, block.id, -1));
+
+          const downButton = document.createElement("button");
+          downButton.className = "icon-button";
+          downButton.type = "button";
+          downButton.textContent = "↓";
+          downButton.disabled = index === totalRealBlocks - 1;
+          downButton.addEventListener("click", () => moveBlock(lesson.id, block.id, 1));
+
+          orderActions.append(upButton, downButton);
+        }
+
+        header.append(title, orderActions);
+        blockEditor.append(header);
+
+        if (block.id === null) {
+          const legacy = document.createElement("p");
+          legacy.className = "legacy-block";
+          legacy.textContent = block.content;
+          blockEditor.append(legacy);
+          return blockEditor;
+        }
+
+        const typeLabel = document.createElement("label");
+        typeLabel.textContent = "Тип";
+        const typeSelect = createBlockTypeSelect(block.type);
+        typeLabel.append(typeSelect);
+
+        const contentLabel = document.createElement("label");
+        contentLabel.textContent = "Содержимое";
+        const contentInput = document.createElement("textarea");
+        contentInput.rows = 5;
+        contentInput.value = block.content;
+        contentLabel.append(contentInput);
+
+        const actions = document.createElement("div");
+        actions.className = "actions-row";
+
+        const saveButton = document.createElement("button");
+        saveButton.className = "primary-button";
+        saveButton.type = "button";
+        saveButton.textContent = "Сохранить блок";
+        saveButton.addEventListener("click", async () => {
+          try {
+            const currentInput = contentLabel.querySelector("textarea, input");
+            const content = validateBlock(typeSelect.value, currentInput.value);
+            await requestJson(`/api/admin/lesson-blocks/${block.id}`, {
+              method: "PUT",
+              body: JSON.stringify({ type: typeSelect.value, content }),
+            });
+            setStatus("Блок сохранён.");
+            await loadData();
+          } catch (error) {
+            setStatus(error.message, true);
+          }
+        });
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "danger-button";
+        deleteButton.type = "button";
+        deleteButton.textContent = "Удалить блок";
+        deleteButton.addEventListener("click", async () => {
+          if (!confirm("Удалить блок?")) {
+            return;
+          }
+          await requestJson(`/api/admin/lesson-blocks/${block.id}`, { method: "DELETE" });
+          setStatus("Блок удалён.");
+          await loadData();
+        });
+
+        actions.append(saveButton, deleteButton);
+        blockEditor.append(typeLabel, contentLabel, actions);
+        return blockEditor;
+      }
+
+      function renderLessonEditor(moduleBlock, lesson) {
+        const lessonBlock = document.createElement("div");
+        lessonBlock.className = "lesson-editor";
+
+        const lessonHeading = document.createElement("h4");
+        lessonHeading.textContent = `Урок #${lesson.id}`;
+
+        const { label: titleLabel, field: titleInput } = createField(
+          "Название урока",
+          lesson.title
+        );
+
+        const lessonActions = document.createElement("div");
+        lessonActions.className = "actions-row";
+
+        const saveLessonButton = document.createElement("button");
+        saveLessonButton.className = "primary-button";
+        saveLessonButton.type = "button";
+        saveLessonButton.textContent = "Сохранить урок";
+        saveLessonButton.addEventListener("click", async () => {
+          await requestJson(`/api/admin/lessons/${lesson.id}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              module_id: lesson.module_id,
+              title: titleInput.value,
+              content: lesson.content || "",
+            }),
+          });
+          setStatus("Урок обновлён.");
+          await loadData();
+        });
+
+        const deleteLessonButton = document.createElement("button");
+        deleteLessonButton.className = "danger-button";
+        deleteLessonButton.type = "button";
+        deleteLessonButton.textContent = "Удалить урок";
+        deleteLessonButton.addEventListener("click", async () => {
+          if (!confirm("Удалить урок?")) {
+            return;
+          }
+          await requestJson(`/api/admin/lessons/${lesson.id}`, { method: "DELETE" });
+          setStatus("Урок удалён.");
+          await loadData();
+        });
+
+        lessonActions.append(saveLessonButton, deleteLessonButton);
+        lessonBlock.append(lessonHeading, titleLabel, lessonActions);
+
+        const blocksTitle = document.createElement("h5");
+        blocksTitle.textContent = "Блоки урока";
+        lessonBlock.append(blocksTitle);
+
+        const blocks = blocksByLesson.get(lesson.id) || [];
+        const realBlocks = blocks.filter((block) => block.id !== null);
+        if (blocks.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "muted";
+          empty.textContent = "В уроке пока нет блоков.";
+          lessonBlock.append(empty);
+        } else {
+          blocks.forEach((block, index) => {
+            const realIndex = realBlocks.findIndex((item) => item.id === block.id);
+            lessonBlock.append(
+              renderBlockEditor(
+                lessonBlock,
+                lesson,
+                block,
+                block.id === null ? index : realIndex,
+                realBlocks.length
+              )
+            );
+          });
+        }
+
+        renderAddBlockForm(lessonBlock, lesson.id);
+        moduleBlock.append(lessonBlock);
       }
 
       function renderEditor() {
@@ -208,61 +490,7 @@
             moduleBlock.append(noLessons);
           }
 
-          moduleLessons.forEach((lesson) => {
-            const lessonBlock = document.createElement("div");
-            lessonBlock.className = "lesson-editor";
-
-            const lessonHeading = document.createElement("h4");
-            lessonHeading.textContent = `Урок #${lesson.id}`;
-
-            const { label: titleLabel, field: titleInput } = createField(
-              "Название урока",
-              lesson.title
-            );
-            const { label: contentLabel, field: contentInput } = createField(
-              "Текст урока",
-              lesson.content,
-              "textarea"
-            );
-
-            const lessonActions = document.createElement("div");
-            lessonActions.className = "actions-row";
-
-            const saveLessonButton = document.createElement("button");
-            saveLessonButton.className = "primary-button";
-            saveLessonButton.type = "button";
-            saveLessonButton.textContent = "Сохранить урок";
-            saveLessonButton.addEventListener("click", async () => {
-              await requestJson(`/api/admin/lessons/${lesson.id}`, {
-                method: "PUT",
-                body: JSON.stringify({
-                  module_id: lesson.module_id,
-                  title: titleInput.value,
-                  content: contentInput.value,
-                }),
-              });
-              setStatus("Урок обновлён.");
-              await loadData();
-            });
-
-            const deleteLessonButton = document.createElement("button");
-            deleteLessonButton.className = "danger-button";
-            deleteLessonButton.type = "button";
-            deleteLessonButton.textContent = "Удалить урок";
-            deleteLessonButton.addEventListener("click", async () => {
-              if (!confirm("Удалить урок?")) {
-                return;
-              }
-              await requestJson(`/api/admin/lessons/${lesson.id}`, { method: "DELETE" });
-              setStatus("Урок удалён.");
-              await loadData();
-            });
-
-            lessonActions.append(saveLessonButton, deleteLessonButton);
-            lessonBlock.append(lessonHeading, titleLabel, contentLabel, lessonActions);
-            moduleBlock.append(lessonBlock);
-          });
-
+          moduleLessons.forEach((lesson) => renderLessonEditor(moduleBlock, lesson));
           courseEditor.append(moduleBlock);
         });
       }
@@ -271,6 +499,10 @@
         try {
           modules = await requestJson("/api/admin/modules");
           lessons = await requestJson("/api/admin/lessons");
+          const blockPairs = await Promise.all(
+            lessons.map(async (lesson) => [lesson.id, await requestJson(`/api/lessons/${lesson.id}/blocks`)])
+          );
+          blocksByLesson = new Map(blockPairs);
           renderEditor();
         } catch (error) {
           setStatus(error.message, true);
@@ -314,14 +546,21 @@
 
       lessonForm.addEventListener("submit", async (event) => {
         event.preventDefault();
-        await requestJson("/api/admin/lessons", {
+        const lesson = await requestJson("/api/admin/lessons", {
           method: "POST",
           body: JSON.stringify({
             module_id: Number(lessonModule.value),
             title: lessonTitle.value,
-            content: lessonContent.value,
+            content: "",
           }),
         });
+        const firstText = lessonContent.value.trim();
+        if (firstText) {
+          await requestJson(`/api/admin/lessons/${lesson.id}/blocks`, {
+            method: "POST",
+            body: JSON.stringify({ type: "text", content: firstText }),
+          });
+        }
         lessonTitle.value = "";
         lessonContent.value = "";
         setStatus("Урок создан.");

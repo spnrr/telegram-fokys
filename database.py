@@ -44,6 +44,15 @@ def init_db() -> None:
                 sort_order INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (module_id) REFERENCES modules(id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS lesson_blocks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lesson_id INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
+            );
             """
         )
 
@@ -225,3 +234,139 @@ def delete_lesson(lesson_id: int) -> bool:
     with get_connection() as connection:
         cursor = connection.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,))
     return cursor.rowcount > 0
+
+
+def next_block_position(lesson_id: int) -> int:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT COALESCE(MAX(position), 0) + 10 AS next_position
+            FROM lesson_blocks
+            WHERE lesson_id = ?
+            """,
+            (lesson_id,),
+        ).fetchone()
+    return int(row["next_position"])
+
+
+def list_lesson_blocks(lesson_id: int, include_legacy_fallback: bool = True) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, lesson_id, type, content, position
+            FROM lesson_blocks
+            WHERE lesson_id = ?
+            ORDER BY position ASC, id ASC
+            """,
+            (lesson_id,),
+        ).fetchall()
+        blocks = [dict(row) for row in rows]
+        if blocks or not include_legacy_fallback:
+            return blocks
+
+        lesson = connection.execute(
+            "SELECT id, content FROM lessons WHERE id = ?",
+            (lesson_id,),
+        ).fetchone()
+
+    if lesson is None:
+        return []
+
+    content = str(lesson["content"] or "").strip()
+    if not content:
+        return []
+
+    return [
+        {
+            "id": None,
+            "lesson_id": int(lesson["id"]),
+            "type": "text",
+            "content": content,
+            "position": 10,
+            "is_legacy": True,
+        }
+    ]
+
+
+def get_lesson_block(block_id: int) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, lesson_id, type, content, position
+            FROM lesson_blocks
+            WHERE id = ?
+            """,
+            (block_id,),
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def create_lesson_block(
+    lesson_id: int,
+    block_type: str,
+    content: str,
+    position: int | None = None,
+) -> dict[str, Any]:
+    if position is None:
+        position = next_block_position(lesson_id)
+
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO lesson_blocks (lesson_id, type, content, position)
+            VALUES (?, ?, ?, ?)
+            """,
+            (lesson_id, block_type, content, position),
+        )
+        block_id = int(cursor.lastrowid)
+    block = get_lesson_block(block_id)
+    if block is None:
+        raise RuntimeError("Created lesson block was not found")
+    return block
+
+
+def update_lesson_block(
+    block_id: int,
+    block_type: str,
+    content: str,
+    position: int | None = None,
+) -> dict[str, Any] | None:
+    existing = get_lesson_block(block_id)
+    if existing is None:
+        return None
+    if position is None:
+        position = int(existing["position"])
+
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE lesson_blocks
+            SET type = ?, content = ?, position = ?
+            WHERE id = ?
+            """,
+            (block_type, content, position, block_id),
+        )
+    return get_lesson_block(block_id)
+
+
+def delete_lesson_block(block_id: int) -> bool:
+    with get_connection() as connection:
+        cursor = connection.execute("DELETE FROM lesson_blocks WHERE id = ?", (block_id,))
+    return cursor.rowcount > 0
+
+
+def reorder_lesson_blocks(lesson_id: int, block_ids: list[int]) -> list[dict[str, Any]]:
+    existing_blocks = list_lesson_blocks(lesson_id, include_legacy_fallback=False)
+    existing_ids = {int(block["id"]) for block in existing_blocks}
+    requested_ids = [int(block_id) for block_id in block_ids]
+
+    if set(requested_ids) != existing_ids or len(requested_ids) != len(existing_ids):
+        raise ValueError("Block ids must match all blocks in the lesson")
+
+    with get_connection() as connection:
+        for index, block_id in enumerate(requested_ids, start=1):
+            connection.execute(
+                "UPDATE lesson_blocks SET position = ? WHERE id = ? AND lesson_id = ?",
+                (index * 10, block_id, lesson_id),
+            )
+    return list_lesson_blocks(lesson_id, include_legacy_fallback=False)

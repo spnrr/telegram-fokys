@@ -7,9 +7,23 @@ const pageSubtitle = document.querySelector("#pageSubtitle");
 const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
 
+const stepLabels = [
+  "Первая ступень",
+  "Вторая ступень",
+  "Третья ступень",
+  "Четвёртая ступень",
+  "Пятая ступень",
+  "Шестая ступень",
+  "Седьмая ступень",
+  "Восьмая ступень",
+  "Девятая ступень",
+  "Десятая ступень",
+];
+
 const state = {
   modules: [],
   lessonsByModule: new Map(),
+  expandedModuleIds: new Set(),
   currentModuleId: null,
   currentLessonId: null,
 };
@@ -21,7 +35,7 @@ function setHeader(label, title, subtitle) {
 }
 
 function syncBackButtons() {
-  const canGoBack = state.currentModuleId !== null;
+  const canGoBack = state.currentLessonId !== null;
   backButton.hidden = !canGoBack;
 
   if (!telegram?.BackButton) {
@@ -73,33 +87,6 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
-function createCard(title, description, meta, onClick) {
-  const button = document.createElement("button");
-  button.className = "card";
-  button.type = "button";
-  button.addEventListener("click", onClick);
-
-  const titleElement = document.createElement("span");
-  titleElement.className = "card-title";
-  titleElement.textContent = title;
-
-  const descriptionElement = document.createElement("span");
-  descriptionElement.className = "card-description";
-  descriptionElement.textContent = description;
-
-  const metaElement = document.createElement("span");
-  metaElement.className = "card-meta";
-  metaElement.textContent = meta;
-
-  const arrow = document.createElement("span");
-  arrow.className = "card-arrow";
-  arrow.textContent = "›";
-  arrow.setAttribute("aria-hidden", "true");
-
-  button.append(titleElement, descriptionElement, metaElement, arrow);
-  return button;
-}
-
 async function loadModules() {
   state.modules = await fetchJson("/api/modules");
 }
@@ -114,6 +101,10 @@ async function loadLessons(moduleId) {
 
 function getLessons(moduleId) {
   return state.lessonsByModule.get(moduleId) || [];
+}
+
+function getStepLabel(index) {
+  return stepLabels[index] || `${index + 1}-я ступень`;
 }
 
 function getLessonPosition(moduleId, lessonId) {
@@ -151,21 +142,107 @@ async function findAdjacentLesson(direction) {
   return null;
 }
 
-async function renderModules() {
-  state.currentModuleId = null;
-  state.currentLessonId = null;
-  state.lessonsByModule.clear();
-  content.className = "content cards-grid";
-  content.replaceChildren();
-  setHeader("Мини-курс", "Модули курса", "Выберите модуль, чтобы увидеть уроки.");
+function createLessonRow(moduleId, lesson, index) {
+  const button = document.createElement("button");
+  button.className = "step-lesson";
+  button.type = "button";
+  button.addEventListener("click", () => renderLesson(moduleId, lesson.id));
+
+  const number = document.createElement("span");
+  number.className = "step-lesson-number";
+  number.textContent = String(index + 1).padStart(2, "0");
+
+  const title = document.createElement("span");
+  title.className = "step-lesson-title";
+  title.textContent = lesson.title;
+
+  button.append(number, title);
+  return button;
+}
+
+async function fillStepLessons(moduleElement, module) {
+  const lessonList = moduleElement.querySelector(".step-lessons");
+  lessonList.replaceChildren();
 
   try {
-    await loadModules();
+    const lessons = await loadLessons(module.id);
+    if (lessons.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "step-empty";
+      empty.textContent = "Уроков пока нет";
+      lessonList.append(empty);
+      return;
+    }
+
+    lessons.forEach((lesson, index) => {
+      lessonList.append(createLessonRow(module.id, lesson, index));
+    });
   } catch (error) {
-    showMessage("Не удалось загрузить курс", error.message, "Повторить", renderModules);
-    syncBackButtons();
-    return;
+    const message = document.createElement("p");
+    message.className = "step-empty";
+    message.textContent = error.message;
+    lessonList.append(message);
   }
+}
+
+function createModuleStep(module, index) {
+  const isExpanded = state.expandedModuleIds.has(module.id);
+  const section = document.createElement("section");
+  section.className = "course-step";
+  section.dataset.moduleId = String(module.id);
+
+  const toggle = document.createElement("button");
+  toggle.className = "course-step-toggle";
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", String(isExpanded));
+
+  const titleGroup = document.createElement("span");
+  titleGroup.className = "course-step-title-group";
+
+  const label = document.createElement("span");
+  label.className = "course-step-label";
+  label.textContent = getStepLabel(index);
+
+  const title = document.createElement("span");
+  title.className = "course-step-title";
+  title.textContent = module.title;
+
+  const arrow = document.createElement("span");
+  arrow.className = "course-step-arrow";
+  arrow.textContent = isExpanded ? "↑" : "↓";
+  arrow.setAttribute("aria-hidden", "true");
+
+  titleGroup.append(label, title);
+  toggle.append(titleGroup, arrow);
+
+  const lessons = document.createElement("div");
+  lessons.className = "step-lessons";
+  lessons.hidden = !isExpanded;
+
+  toggle.addEventListener("click", async () => {
+    if (state.expandedModuleIds.has(module.id)) {
+      state.expandedModuleIds.delete(module.id);
+    } else {
+      state.expandedModuleIds.add(module.id);
+    }
+    renderModuleSteps(false);
+  });
+
+  section.append(toggle, lessons);
+  if (isExpanded) {
+    fillStepLessons(section, module);
+  }
+  return section;
+}
+
+function renderModuleSteps(resetLessonState = true) {
+  if (resetLessonState) {
+    state.currentModuleId = null;
+    state.currentLessonId = null;
+  }
+  content.className = "content course-steps";
+  content.replaceChildren();
+  setHeader("Мини-курс", "Ступени курса", "Раскройте модуль и выберите урок.");
 
   if (state.modules.length === 0) {
     showMessage(
@@ -176,52 +253,20 @@ async function renderModules() {
     return;
   }
 
-  state.modules.forEach((module) => {
-    const count = Number(module.lessons_count || 0);
-    const lessonsLabel = `${count} ${count === 1 ? "урок" : "уроков"}`;
-    content.append(
-      createCard(module.title, "Откройте модуль, чтобы увидеть уроки.", lessonsLabel, () =>
-        renderLessons(module.id)
-      )
-    );
+  state.modules.forEach((module, index) => {
+    content.append(createModuleStep(module, index));
   });
   syncBackButtons();
 }
 
-async function renderLessons(moduleId) {
-  const module = state.modules.find((item) => item.id === moduleId);
-  if (!module) {
-    await renderModules();
-    return;
-  }
-
-  state.currentModuleId = moduleId;
-  state.currentLessonId = null;
-  content.className = "content";
-  content.replaceChildren();
-  setHeader("Модуль", module.title, "Выберите урок, чтобы открыть текст.");
-
+async function renderModules() {
   try {
-    const lessons = await loadLessons(moduleId);
-    if (lessons.length === 0) {
-      showMessage("В модуле пока нет уроков", "Добавьте урок через админ-панель.");
-      syncBackButtons();
-      return;
-    }
-
-    lessons.forEach((lesson, index) => {
-      content.append(
-        createCard(lesson.title, "Открыть текст урока.", `Урок ${index + 1}`, () => {
-          renderLesson(moduleId, lesson.id);
-        })
-      );
-    });
+    await loadModules();
+    renderModuleSteps();
   } catch (error) {
-    showMessage("Не удалось загрузить уроки", error.message, "Повторить", () =>
-      renderLessons(moduleId)
-    );
+    showMessage("Не удалось загрузить курс", error.message, "Повторить", renderModules);
+    syncBackButtons();
   }
-  syncBackButtons();
 }
 
 function renderParagraphs(container, text) {
@@ -233,6 +278,75 @@ function renderParagraphs(container, text) {
   });
 }
 
+function getYouTubeEmbedUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtube.com")) {
+      const videoId = parsed.searchParams.get("v") || parsed.pathname.split("/").pop();
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+    }
+    if (parsed.hostname === "youtu.be") {
+      const videoId = parsed.pathname.replace("/", "");
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function appendTextBlock(article, block) {
+  const blockElement = document.createElement("section");
+  blockElement.className = "lesson-block lesson-block-text";
+  renderParagraphs(blockElement, block.content);
+  article.append(blockElement);
+}
+
+function appendImageBlock(article, block) {
+  const image = document.createElement("img");
+  image.className = "lesson-image";
+  image.src = block.content;
+  image.alt = "";
+  image.loading = "lazy";
+  article.append(image);
+}
+
+function appendVideoBlock(article, block) {
+  const embedUrl = getYouTubeEmbedUrl(block.content);
+  if (embedUrl) {
+    const frameWrap = document.createElement("div");
+    frameWrap.className = "lesson-video-frame";
+    const iframe = document.createElement("iframe");
+    iframe.src = embedUrl;
+    iframe.title = "Видео урока";
+    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    frameWrap.append(iframe);
+    article.append(frameWrap);
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.className = "primary-button lesson-video-link";
+  link.href = block.content;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = "Открыть видео";
+  article.append(link);
+}
+
+function appendLessonBlock(article, block) {
+  if (block.type === "image") {
+    appendImageBlock(article, block);
+    return;
+  }
+  if (block.type === "video") {
+    appendVideoBlock(article, block);
+    return;
+  }
+  appendTextBlock(article, block);
+}
+
 async function renderLesson(moduleId, lessonId) {
   const module = state.modules.find((item) => item.id === moduleId);
   state.currentModuleId = moduleId;
@@ -242,12 +356,23 @@ async function renderLesson(moduleId, lessonId) {
   setHeader(module?.title || "Урок", "Загрузка урока…", "Подождите несколько секунд.");
 
   try {
-    const lesson = await fetchJson(`/api/lessons/${lessonId}`);
+    await loadLessons(moduleId);
+    const [lesson, blocks] = await Promise.all([
+      fetchJson(`/api/lessons/${lessonId}`),
+      fetchJson(`/api/lessons/${lessonId}/blocks`),
+    ]);
     setHeader(lesson.module_title || module?.title || "Урок", lesson.title, "Читайте в удобном темпе.");
 
     const article = document.createElement("article");
     article.className = "lesson";
-    renderParagraphs(article, lesson.content);
+    if (blocks.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "muted";
+      empty.textContent = "В уроке пока нет содержимого.";
+      article.append(empty);
+    } else {
+      blocks.forEach((block) => appendLessonBlock(article, block));
+    }
 
     const navigation = document.createElement("div");
     navigation.className = "lesson-navigation";
@@ -280,17 +405,15 @@ async function renderLesson(moduleId, lessonId) {
       content.append(navigation);
     }
   } catch (error) {
-    showMessage("Не удалось открыть урок", error.message, "Вернуться к модулям", renderModules);
+    showMessage("Не удалось открыть урок", error.message, "Вернуться к ступеням", renderModules);
   }
   syncBackButtons();
 }
 
 function goBack() {
-  if (state.currentLessonId !== null && state.currentModuleId !== null) {
-    renderLessons(state.currentModuleId);
-    return;
-  }
-  renderModules();
+  state.currentModuleId = null;
+  state.currentLessonId = null;
+  renderModuleSteps();
 }
 
 backButton.addEventListener("click", goBack);

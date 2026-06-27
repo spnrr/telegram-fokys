@@ -10,6 +10,7 @@ import database
 
 BASE_DIR = Path(__file__).resolve().parent
 WEBAPP_DIR = BASE_DIR / "webapp"
+VALID_BLOCK_TYPES = {"text", "image", "video"}
 
 
 def create_app() -> Flask:
@@ -40,6 +41,22 @@ def create_app() -> Flask:
     def clean_content(value: Any, max_length: int = 20_000) -> str:
         text = str(value or "").strip()
         return text[:max_length]
+
+    def validate_block_payload(payload: dict[str, Any]) -> tuple[str, str, tuple[Response, int] | None]:
+        block_type = clean_text(payload.get("type"), 20)
+        content = clean_content(payload.get("content"))
+        if block_type not in VALID_BLOCK_TYPES:
+            return "", "", (jsonify({"error": "Block type must be text, image, or video"}), 400)
+        if block_type == "text" and not content:
+            return "", "", (jsonify({"error": "Text block cannot be empty"}), 400)
+        if block_type in {"image", "video"} and not (
+            content.startswith("http://") or content.startswith("https://")
+        ):
+            return "", "", (
+                jsonify({"error": "Image and video URLs must start with http:// or https://"}),
+                400,
+            )
+        return block_type, content, None
 
     def clean_sort_order(value: Any) -> int | None:
         if value in (None, ""):
@@ -86,6 +103,12 @@ def create_app() -> Flask:
         if lesson is None:
             return jsonify({"error": "Lesson not found"}), 404
         return jsonify(lesson)
+
+    @app.get("/api/lessons/<int:lesson_id>/blocks")
+    def api_lesson_blocks(lesson_id: int) -> tuple[Response, int] | Response:
+        if database.get_lesson(lesson_id) is None:
+            return jsonify({"error": "Lesson not found"}), 404
+        return jsonify(database.list_lesson_blocks(lesson_id))
 
     @app.get("/api/admin/modules")
     def api_admin_modules() -> tuple[Response, int] | Response:
@@ -157,8 +180,6 @@ def create_app() -> Flask:
             return jsonify({"error": "Valid module_id is required"}), 400
         if not title:
             return jsonify({"error": "Lesson title is required"}), 400
-        if not content:
-            return jsonify({"error": "Lesson content is required"}), 400
 
         lesson = database.create_lesson(
             module_id,
@@ -182,8 +203,6 @@ def create_app() -> Flask:
             return jsonify({"error": "Valid module_id is required"}), 400
         if not title:
             return jsonify({"error": "Lesson title is required"}), 400
-        if not content:
-            return jsonify({"error": "Lesson content is required"}), 400
 
         lesson = database.update_lesson(
             lesson_id,
@@ -205,6 +224,80 @@ def create_app() -> Flask:
         if not database.delete_lesson(lesson_id):
             return jsonify({"error": "Lesson not found"}), 404
         return jsonify({"ok": True})
+
+    @app.post("/api/admin/lessons/<int:lesson_id>/blocks")
+    def api_create_lesson_block(lesson_id: int) -> tuple[Response, int] | Response:
+        denied = require_admin_password()
+        if denied is not None:
+            return denied
+        if database.get_lesson(lesson_id) is None:
+            return jsonify({"error": "Lesson not found"}), 404
+
+        payload = get_json_payload()
+        block_type, content, error = validate_block_payload(payload)
+        if error is not None:
+            return error
+
+        block = database.create_lesson_block(
+            lesson_id,
+            block_type,
+            content,
+            clean_sort_order(payload.get("position")),
+        )
+        return jsonify(block), 201
+
+    @app.put("/api/admin/lesson-blocks/<int:block_id>")
+    def api_update_lesson_block(block_id: int) -> tuple[Response, int] | Response:
+        denied = require_admin_password()
+        if denied is not None:
+            return denied
+
+        payload = get_json_payload()
+        block_type, content, error = validate_block_payload(payload)
+        if error is not None:
+            return error
+
+        block = database.update_lesson_block(
+            block_id,
+            block_type,
+            content,
+            clean_sort_order(payload.get("position")),
+        )
+        if block is None:
+            return jsonify({"error": "Lesson block not found"}), 404
+        return jsonify(block)
+
+    @app.delete("/api/admin/lesson-blocks/<int:block_id>")
+    def api_delete_lesson_block(block_id: int) -> tuple[Response, int] | Response:
+        denied = require_admin_password()
+        if denied is not None:
+            return denied
+
+        if not database.delete_lesson_block(block_id):
+            return jsonify({"error": "Lesson block not found"}), 404
+        return jsonify({"ok": True})
+
+    @app.post("/api/admin/lessons/<int:lesson_id>/blocks/reorder")
+    def api_reorder_lesson_blocks(lesson_id: int) -> tuple[Response, int] | Response:
+        denied = require_admin_password()
+        if denied is not None:
+            return denied
+        if database.get_lesson(lesson_id) is None:
+            return jsonify({"error": "Lesson not found"}), 404
+
+        payload = get_json_payload()
+        block_ids = payload.get("block_ids")
+        if not isinstance(block_ids, list):
+            return jsonify({"error": "block_ids must be a list"}), 400
+
+        try:
+            blocks = database.reorder_lesson_blocks(
+                lesson_id,
+                [int(block_id) for block_id in block_ids],
+            )
+        except (TypeError, ValueError):
+            return jsonify({"error": "block_ids must match all blocks in the lesson"}), 400
+        return jsonify(blocks)
 
     return app
 
