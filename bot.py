@@ -9,8 +9,7 @@ from dotenv import load_dotenv
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
     Update,
     WebAppInfo,
 )
@@ -23,6 +22,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from telegram.error import TelegramError
 
 
 logging.basicConfig(
@@ -36,22 +36,7 @@ MAX_TASK_LENGTH = 200
 MAX_STEP_LENGTH = 120
 MAX_CONTENT_TOPIC_LENGTH = 120
 
-PLAN_BUTTON = "План дня"
-CONTENT_BUTTON = "Контент"
-FOCUS_BUTTON = "Фокус"
-CHECK_BUTTON = "Проверка"
-MENU_BUTTON_PATTERN = rf"^(?:{PLAN_BUTTON}|{CONTENT_BUTTON}|{FOCUS_BUTTON}|{CHECK_BUTTON})$"
-
-MAIN_MENU = ReplyKeyboardMarkup(
-    [
-        [KeyboardButton(PLAN_BUTTON), KeyboardButton(CONTENT_BUTTON)],
-        [KeyboardButton(FOCUS_BUTTON), KeyboardButton(CHECK_BUTTON)],
-    ],
-    resize_keyboard=True,
-    is_persistent=True,
-    input_field_placeholder="Выберите действие",
-)
-NON_MENU_TEXT = filters.TEXT & ~filters.COMMAND & ~filters.Regex(MENU_BUTTON_PATTERN)
+NON_MENU_TEXT = filters.TEXT & ~filters.COMMAND
 
 FOCUS_TIPS = (
     "Убери телефон подальше и поставь таймер на 25 минут.",
@@ -121,16 +106,47 @@ def build_admin_url(webapp_url: str) -> str:
     return f"{webapp_url.rstrip('/')}/admin"
 
 
+def build_webapp_keyboard(webapp_url: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        [[
+            InlineKeyboardButton(
+                "Открыть приложение",
+                web_app=WebAppInfo(url=webapp_url),
+            )
+        ]]
+    )
+
+
 async def start(update: Update, context: CallbackContext) -> None:
-    del context
     if update.message is None:
         return
 
+    webapp_url = str(context.application.bot_data.get("webapp_url", "")).strip()
+    remove_keyboard_message = await update.message.reply_text(
+        "Обновляю меню Protocol.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    try:
+        await remove_keyboard_message.delete()
+    except TelegramError:
+        logger.debug("Could not delete temporary keyboard removal message", exc_info=True)
+
+    if not is_valid_webapp_url(webapp_url):
+        await update.message.reply_text(
+            "Добро пожаловать в Protocol.\n\n"
+            "Mini App пока не настроен. Добавьте публичный HTTPS-адрес в WEBAPP_URL "
+            "и перезапустите бота.\n\n"
+            "Не отключайте уведомления: в Protocol будут работать умные уведомления "
+            "по задачам, фокусу и прогрессу."
+        )
+        return
+
     await update.message.reply_text(
-        "Привет! Я помогу выбрать одну главную задачу на день, разбить её "
-        "на три простых шага, вечером отметить результат и подготовить идею ролика.\n\n"
-        "Выбери нужное действие на клавиатуре ниже или используй команду.",
-        reply_markup=MAIN_MENU,
+        "Добро пожаловать в Protocol.\n\n"
+        "Чтобы открыть приложение, нажмите кнопку «Открыть приложение» в Telegram.\n\n"
+        "Не отключайте уведомления: в Protocol будут работать умные уведомления "
+        "по задачам, фокусу и прогрессу.",
+        reply_markup=build_webapp_keyboard(webapp_url),
     )
 
 
@@ -141,7 +157,7 @@ async def help_command(update: Update, context: CallbackContext) -> None:
 
     await update.message.reply_text(
         "Доступные команды:\n"
-        "/start — узнать идею бота\n"
+        "/start — открыть Protocol\n"
         "/help — показать список команд\n"
         "/plan — составить план на день\n"
         "/focus — получить совет по концентрации\n"
@@ -149,8 +165,7 @@ async def help_command(update: Update, context: CallbackContext) -> None:
         "/content — подготовить идею и структуру ролика\n"
         "/app — открыть обучающее Mini App\n"
         "/admin — получить ссылку на админ-панель курса\n"
-        "/cancel — отменить текущий диалог\n\n"
-        "Основные действия также доступны на постоянной клавиатуре."
+        "/cancel — отменить текущий диалог"
     )
 
 
@@ -308,17 +323,9 @@ async def open_app(update: Update, context: CallbackContext) -> None:
         )
         return
 
-    keyboard = InlineKeyboardMarkup(
-        [[
-            InlineKeyboardButton(
-                "Открыть обучение",
-                web_app=WebAppInfo(url=webapp_url),
-            )
-        ]]
-    )
     await update.message.reply_text(
-        "Нажмите кнопку, чтобы открыть модули курса.",
-        reply_markup=keyboard,
+        "Нажмите кнопку, чтобы открыть приложение.",
+        reply_markup=build_webapp_keyboard(webapp_url),
     )
 
 
@@ -391,8 +398,6 @@ def build_application(token: str, webapp_url: str = "") -> Application:
         entry_points=[
             CommandHandler("plan", plan_start),
             CommandHandler("content", content_start),
-            MessageHandler(filters.Regex(rf"^{PLAN_BUTTON}$"), plan_start),
-            MessageHandler(filters.Regex(rf"^{CONTENT_BUTTON}$"), content_start),
         ],
         states={
             PLAN_TASK: [MessageHandler(NON_MENU_TEXT, receive_task)],
@@ -401,8 +406,6 @@ def build_application(token: str, webapp_url: str = "") -> Application:
         },
         fallbacks=[
             CommandHandler("cancel", cancel),
-            MessageHandler(filters.Regex(rf"^{FOCUS_BUTTON}$"), focus),
-            MessageHandler(filters.Regex(rf"^{CHECK_BUTTON}$"), check),
         ],
         allow_reentry=True,
     )
@@ -414,8 +417,6 @@ def build_application(token: str, webapp_url: str = "") -> Application:
     application.add_handler(CommandHandler("check", check))
     application.add_handler(CommandHandler("app", open_app))
     application.add_handler(CommandHandler("admin", open_admin))
-    application.add_handler(MessageHandler(filters.Regex(rf"^{FOCUS_BUTTON}$"), focus))
-    application.add_handler(MessageHandler(filters.Regex(rf"^{CHECK_BUTTON}$"), check))
     application.add_handler(
         CallbackQueryHandler(handle_check_result, pattern=r"^check:(yes|no)$")
     )
