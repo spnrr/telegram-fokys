@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    MenuButtonWebApp,
     ReplyKeyboardRemove,
     Update,
     WebAppInfo,
@@ -22,7 +23,6 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from telegram.error import TelegramError
 
 
 logging.basicConfig(
@@ -106,47 +106,41 @@ def build_admin_url(webapp_url: str) -> str:
     return f"{webapp_url.rstrip('/')}/admin"
 
 
-def build_webapp_keyboard(webapp_url: str) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        [[
-            InlineKeyboardButton(
-                "Открыть приложение",
-                web_app=WebAppInfo(url=webapp_url),
-            )
-        ]]
+async def set_protocol_menu_button(
+    context: CallbackContext,
+    chat_id: int,
+    webapp_url: str,
+) -> None:
+    await context.bot.set_chat_menu_button(
+        chat_id=chat_id,
+        menu_button=MenuButtonWebApp(
+            text="Открыть",
+            web_app=WebAppInfo(url=webapp_url),
+        ),
     )
 
 
 async def start(update: Update, context: CallbackContext) -> None:
-    if update.message is None:
+    if update.message is None or update.effective_chat is None:
         return
 
     webapp_url = str(context.application.bot_data.get("webapp_url", "")).strip()
-    remove_keyboard_message = await update.message.reply_text(
-        "Обновляю меню Protocol.",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-    try:
-        await remove_keyboard_message.delete()
-    except TelegramError:
-        logger.debug("Could not delete temporary keyboard removal message", exc_info=True)
 
     if not is_valid_webapp_url(webapp_url):
         await update.message.reply_text(
-            "Добро пожаловать в Protocol.\n\n"
             "Mini App пока не настроен. Добавьте публичный HTTPS-адрес в WEBAPP_URL "
-            "и перезапустите бота.\n\n"
-            "Не отключайте уведомления: в Protocol будут работать умные уведомления "
-            "по задачам, фокусу и прогрессу."
+            "и перезапустите бота.",
+            reply_markup=ReplyKeyboardRemove(),
         )
         return
 
+    await set_protocol_menu_button(context, update.effective_chat.id, webapp_url)
     await update.message.reply_text(
         "Добро пожаловать в Protocol.\n\n"
-        "Чтобы открыть приложение, нажмите кнопку «Открыть приложение» в Telegram.\n\n"
+        "Чтобы открыть приложение, нажмите кнопку «Открыть» рядом с полем ввода в Telegram.\n\n"
         "Не отключайте уведомления: в Protocol будут работать умные уведомления "
         "по задачам, фокусу и прогрессу.",
-        reply_markup=build_webapp_keyboard(webapp_url),
+        reply_markup=ReplyKeyboardRemove(),
     )
 
 
@@ -312,20 +306,22 @@ async def check(update: Update, context: CallbackContext) -> None:
 
 
 async def open_app(update: Update, context: CallbackContext) -> None:
-    if update.message is None:
+    if update.message is None or update.effective_chat is None:
         return
 
     webapp_url = str(context.application.bot_data.get("webapp_url", "")).strip()
     if not is_valid_webapp_url(webapp_url):
         await update.message.reply_text(
             "Mini App пока не настроен. Добавьте публичный HTTPS-адрес в WEBAPP_URL "
-            "и перезапустите бота."
+            "и перезапустите бота.",
+            reply_markup=ReplyKeyboardRemove(),
         )
         return
 
+    await set_protocol_menu_button(context, update.effective_chat.id, webapp_url)
     await update.message.reply_text(
-        "Нажмите кнопку, чтобы открыть приложение.",
-        reply_markup=build_webapp_keyboard(webapp_url),
+        "Приложение можно открыть кнопкой «Открыть» рядом с полем ввода.",
+        reply_markup=ReplyKeyboardRemove(),
     )
 
 
