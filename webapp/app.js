@@ -6,6 +6,7 @@ const pageTitle = document.querySelector("#pageTitle");
 const pageSubtitle = document.querySelector("#pageSubtitle");
 const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
+const MINI_APP_DARK_COLOR = "#0b0d0f";
 
 const stepLabels = [
   "Первая ступень",
@@ -45,6 +46,29 @@ function syncBackButtons() {
     telegram.BackButton.show();
   } else {
     telegram.BackButton.hide();
+  }
+}
+
+function configureTelegramWebApp() {
+  if (!telegram) {
+    return;
+  }
+
+  try {
+    telegram.ready();
+    telegram.expand();
+    telegram.setHeaderColor?.(MINI_APP_DARK_COLOR);
+    telegram.setBackgroundColor?.(MINI_APP_DARK_COLOR);
+    telegram.setBottomBarColor?.(MINI_APP_DARK_COLOR);
+
+    if (telegram.isVersionAtLeast?.("8.0")) {
+      const fullscreenResult = telegram.requestFullscreen?.();
+      if (fullscreenResult && typeof fullscreenResult.catch === "function") {
+        fullscreenResult.catch(() => {});
+      }
+    }
+  } catch (error) {
+    console.debug("Telegram WebApp viewport setup skipped:", error);
   }
 }
 
@@ -418,7 +442,6 @@ function goBack() {
 
 backButton.addEventListener("click", goBack);
 telegram?.BackButton?.onClick(goBack);
-telegram?.ready();
-telegram?.expand();
+configureTelegramWebApp();
 
 renderModules();

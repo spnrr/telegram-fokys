@@ -6,6 +6,15 @@
   font-synthesis: none;
 }
 
+html.mini-app-page {
+  width: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  background: #0b0d0f;
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -547,6 +556,9 @@ body.mini-app {
   --shadow: rgba(0, 0, 0, 0.28);
   min-width: 280px;
   min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 260px),
     var(--bg);
@@ -554,8 +566,10 @@ body.mini-app {
 }
 
 body.mini-app .app-shell {
-  width: min(100%, 720px);
-  padding: calc(28px + env(safe-area-inset-top)) 18px calc(34px + env(safe-area-inset-bottom));
+  width: min(100%, 860px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(28px + env(safe-area-inset-top)) clamp(18px, 4vw, 34px) calc(34px + env(safe-area-inset-bottom));
 }
 
 body.mini-app .topbar {
@@ -812,12 +826,19 @@ body.mini-app .empty-state p {
 
 @media (min-width: 620px) {
   body.mini-app .app-shell {
-    padding-right: 26px;
-    padding-left: 26px;
+    padding-right: clamp(26px, 4vw, 42px);
+    padding-left: clamp(26px, 4vw, 42px);
   }
 
   body.mini-app .lesson {
     padding: 28px;
+  }
+}
+
+@media (min-width: 960px) {
+  body.mini-app .app-shell {
+    padding-top: calc(42px + env(safe-area-inset-top));
+    padding-bottom: calc(54px + env(safe-area-inset-bottom));
   }
 }
 
