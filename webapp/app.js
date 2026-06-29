@@ -242,7 +242,7 @@ function renderModuleSteps(resetLessonState = true) {
   }
   content.className = "content course-steps";
   content.replaceChildren();
-  setHeader("Мини-курс", "Ступени курса", "Раскройте модуль и выберите урок.");
+  setHeader("protocol", "Ступени курса", "Раскройте модуль и выберите урок.");
 
   if (state.modules.length === 0) {
     showMessage(
