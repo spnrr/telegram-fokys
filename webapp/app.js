@@ -67,6 +67,7 @@ function configureTelegramWebApp() {
     telegram.setHeaderColor?.(MINI_APP_DARK_COLOR);
     telegram.setBackgroundColor?.(MINI_APP_DARK_COLOR);
     telegram.setBottomBarColor?.(MINI_APP_DARK_COLOR);
+    telegram.disableVerticalSwipes?.();
 
     if (telegram.isVersionAtLeast?.("8.0")) {
       const fullscreenResult = telegram.requestFullscreen?.();
@@ -130,6 +131,14 @@ function blockProtectedLessonEvent(event) {
     return true;
   }
   return false;
+}
+
+function handleProtectedDragStart(event) {
+  const targetElement = getElementFromNode(event.target);
+  if (targetElement?.closest?.(".lesson-text-block")) {
+    return false;
+  }
+  return blockProtectedLessonEvent(event);
 }
 
 function handleProtectedKeydown(event) {
@@ -941,7 +950,7 @@ configureTelegramWebApp();
 
 document.addEventListener("copy", blockProtectedLessonEvent);
 document.addEventListener("cut", blockProtectedLessonEvent);
-document.addEventListener("dragstart", blockProtectedLessonEvent);
+document.addEventListener("dragstart", handleProtectedDragStart);
 document.addEventListener("keydown", handleProtectedKeydown);
 
 document.addEventListener("selectionchange", () => {

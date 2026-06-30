@@ -22,6 +22,7 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
 - [x] (2026-06-30 11:31Z) Replaced the Range-after-click highlighting path with a stable `pendingHighlightSelection` object containing `blockId`, `startOffset`, `endOffset`, and `selectedText`.
 - [x] (2026-06-30 11:31Z) Reworked text block rendering to rebuild from raw text and safe `mark` nodes using character offsets.
 - [x] (2026-06-30 11:31Z) Stopped blocking `contextmenu` on lesson text so mobile text selection is not broken before the copy event can be blocked.
+- [x] (2026-06-30 11:38Z) Strengthened mobile text selection by explicitly allowing WebKit callout/user selection on lesson text, keeping toolbar selection disabled, not blocking text `dragstart`, and asking Telegram WebApp to disable vertical swipe interception when supported.
 
 ## Surprises & Discoveries
 
@@ -36,6 +37,9 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
 
 - Observation: Reusing a saved DOM Range after toolbar interaction is still too fragile because the page may be rerendered with `mark` elements and paragraph wrappers, changing the DOM structure beneath the saved Range.
   Evidence: The user reported that selecting one word such as "Другие" could highlight a different word even after the earlier cloneRange patch.
+
+- Observation: After the offset rewrite, desktop highlighting worked but mobile long-press text selection still did not start.
+  Evidence: The user reported on 2026-06-30 that everything worked except selecting text from a phone.
 
 ## Decision Log
 
@@ -59,11 +63,21 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
   Rationale: On mobile Telegram/WebView clients, preventing context menu and touch-related events can break native text selection. Copy remains blocked through `copy`, `cut`, and keyboard copy handlers.
   Date/Author: 2026-06-30 / Codex
 
+- Decision: Do not block `dragstart` when it originates inside `.lesson-text-block`.
+  Rationale: Mobile selection handles and long-press selection can rely on native drag-like behavior. Copy protection remains active for `copy`, `cut`, keyboard copy, and non-text drags such as images.
+  Date/Author: 2026-06-30 / Codex
+
+- Decision: Call `telegram.disableVerticalSwipes?.()` during Mini App setup.
+  Rationale: Telegram mobile clients can intercept vertical gestures for closing or moving the Mini App. Disabling those swipes when supported gives native text selection more room to work.
+  Date/Author: 2026-06-30 / Codex
+
 ## Outcomes & Retrospective
 
 Implemented the requested MVP in the Mini App frontend. Lesson text remains selectable, a floating toolbar provides five highlight colors and a remove action, highlights are persisted in localStorage per lesson, and copying/cutting/drag/keyboard copy attempts inside lessons are blocked with a short notice. Backend, bot, database, Railway startup, and admin logic were not changed.
 
 The 2026-06-30 revision changes the core highlight model so color selection no longer depends on the DOM Range after the toolbar click. The app now stores offsets at selection time and rebuilds each text block from raw text and safe `mark` elements.
+
+The later 2026-06-30 mobile revision keeps the offset model and changes only gesture/CSS behavior so phone users can start native text selection.
 
 Automated validation covered syntax and local rendering. A fully automated real text-selection test was limited by the browser automation sandbox, so final phone/desktop confirmation should be done manually in Telegram and a normal browser.
 
