@@ -6,9 +6,33 @@ const pageTitle = document.querySelector("#pageTitle");
 const pageSubtitle = document.querySelector("#pageSubtitle");
 const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
+const topbar = document.querySelector(".topbar");
 const MINI_APP_DARK_COLOR = "#0b0d0f";
 const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
 let pendingHighlightSelection = null;
+
+const COURSE_LANDING_CONFIG = {
+  brandTitle: "Протокол 0.",
+  brandSubtitle: "закрытый курс",
+  heroImageUrl: "",
+  heroKicker: "ПРОТОКОЛ",
+  heroTitle: "Следуй протоколу",
+  heroDescription: "Закрытая система уроков, фокуса и движения вперёд.",
+  productImageUrl: "",
+  productTitle: "Протокол 0.",
+  productDescription: "Ты уже здесь. Обратного пути нет.",
+  productPrice: "Бесплатно",
+  continueButtonText: "Продолжить",
+  searchPlaceholder: "Поиск по названию",
+  authorName: "Protocol",
+};
+
+const LAST_LESSON_STORAGE_KEYS = {
+  lessonId: "protocol_last_lesson_id",
+  moduleId: "protocol_last_module_id",
+  lessonTitle: "protocol_last_lesson_title",
+  openedAt: "protocol_last_opened_at",
+};
 
 const stepLabels = [
   "Первая ступень",
@@ -37,9 +61,15 @@ const state = {
 };
 
 function setHeader(label, title, subtitle) {
+  setCourseHeaderVisible(true);
   eyebrow.textContent = label;
   pageTitle.textContent = title;
   pageSubtitle.textContent = subtitle;
+}
+
+function setCourseHeaderVisible(isVisible) {
+  topbar.hidden = !isVisible;
+  pageSubtitle.hidden = !isVisible;
 }
 
 function syncBackButtons() {
@@ -78,6 +108,37 @@ function configureTelegramWebApp() {
   } catch (error) {
     console.debug("Telegram WebApp viewport setup skipped:", error);
   }
+}
+
+function getLastLessonProgress() {
+  const lessonId = Number(localStorage.getItem(LAST_LESSON_STORAGE_KEYS.lessonId));
+  const moduleId = Number(localStorage.getItem(LAST_LESSON_STORAGE_KEYS.moduleId));
+  const lessonTitle = localStorage.getItem(LAST_LESSON_STORAGE_KEYS.lessonTitle) || "";
+  const openedAt = localStorage.getItem(LAST_LESSON_STORAGE_KEYS.openedAt) || "";
+
+  if (!Number.isInteger(lessonId) || lessonId <= 0) {
+    return null;
+  }
+
+  return {
+    lessonId,
+    moduleId: Number.isInteger(moduleId) && moduleId > 0 ? moduleId : null,
+    lessonTitle,
+    openedAt,
+  };
+}
+
+function saveLastLessonProgress(moduleId, lesson) {
+  if (!lesson?.id) {
+    return;
+  }
+
+  localStorage.setItem(LAST_LESSON_STORAGE_KEYS.lessonId, String(lesson.id));
+  if (moduleId) {
+    localStorage.setItem(LAST_LESSON_STORAGE_KEYS.moduleId, String(moduleId));
+  }
+  localStorage.setItem(LAST_LESSON_STORAGE_KEYS.lessonTitle, lesson.title || "Урок");
+  localStorage.setItem(LAST_LESSON_STORAGE_KEYS.openedAt, new Date().toISOString());
 }
 
 function getElementFromNode(node) {
@@ -749,6 +810,226 @@ function createModuleStep(module, index) {
   return section;
 }
 
+function createLandingImage(url, className, label) {
+  const wrapper = document.createElement("div");
+  wrapper.className = className;
+
+  if (url) {
+    const image = document.createElement("img");
+    image.src = url;
+    image.alt = label;
+    image.loading = "lazy";
+    image.draggable = false;
+    image.addEventListener("error", () => {
+      wrapper.classList.add("is-placeholder");
+      wrapper.replaceChildren(createLandingPlaceholder(label));
+    });
+    wrapper.append(image);
+    return wrapper;
+  }
+
+  wrapper.classList.add("is-placeholder");
+  wrapper.append(createLandingPlaceholder(label));
+  return wrapper;
+}
+
+function createLandingPlaceholder(label) {
+  const placeholder = document.createElement("div");
+  placeholder.className = "landing-image-placeholder";
+
+  const mark = document.createElement("span");
+  mark.textContent = "PROTOCOL";
+
+  const text = document.createElement("strong");
+  text.textContent = label;
+
+  placeholder.append(mark, text);
+  return placeholder;
+}
+
+async function showModulesScreen() {
+  await loadModules();
+  renderModuleSteps();
+}
+
+async function continueCourseFromLanding() {
+  const lastLesson = getLastLessonProgress();
+  if (!lastLesson?.lessonId || !lastLesson.moduleId) {
+    await showModulesScreen();
+    return;
+  }
+
+  if (state.modules.length === 0) {
+    await loadModules();
+  }
+
+  const moduleExists = state.modules.some((module) => module.id === lastLesson.moduleId);
+  if (!moduleExists) {
+    await showModulesScreen();
+    return;
+  }
+
+  const lessons = await loadLessons(lastLesson.moduleId);
+  const lessonExists = lessons.some((lesson) => lesson.id === lastLesson.lessonId);
+  if (!lessonExists) {
+    await showModulesScreen();
+    return;
+  }
+
+  await renderLesson(lastLesson.moduleId, lastLesson.lessonId);
+}
+
+function renderLandingScreen() {
+  hideSelectionToolbar();
+  state.currentModuleId = null;
+  state.currentLessonId = null;
+  state.currentBlocks = [];
+  setCourseHeaderVisible(false);
+  syncBackButtons();
+
+  const lastLesson = getLastLessonProgress();
+  content.className = "content landing-screen";
+  content.replaceChildren();
+
+  const shell = document.createElement("section");
+  shell.className = "landing-shell";
+
+  const header = document.createElement("header");
+  header.className = "landing-header";
+
+  const brand = document.createElement("div");
+  brand.className = "landing-brand";
+
+  const logo = document.createElement("div");
+  logo.className = "landing-logo";
+  logo.textContent = "P0";
+
+  const brandText = document.createElement("div");
+  const brandTitle = document.createElement("strong");
+  brandTitle.textContent = COURSE_LANDING_CONFIG.brandTitle;
+  const brandSubtitle = document.createElement("span");
+  brandSubtitle.textContent = COURSE_LANDING_CONFIG.brandSubtitle;
+  brandText.append(brandTitle, brandSubtitle);
+  brand.append(logo, brandText);
+
+  const headerBadge = document.createElement("span");
+  headerBadge.className = "landing-header-badge";
+  headerBadge.textContent = "mini app";
+  header.append(brand, headerBadge);
+
+  const hero = document.createElement("section");
+  hero.className = "landing-hero";
+  const heroImage = createLandingImage(
+    COURSE_LANDING_CONFIG.heroImageUrl,
+    "landing-hero-image",
+    COURSE_LANDING_CONFIG.heroKicker
+  );
+
+  const heroCopy = document.createElement("div");
+  heroCopy.className = "landing-hero-copy";
+  const heroKicker = document.createElement("span");
+  heroKicker.textContent = COURSE_LANDING_CONFIG.heroKicker;
+  const heroTitle = document.createElement("h2");
+  heroTitle.textContent = COURSE_LANDING_CONFIG.heroTitle;
+  const heroDescription = document.createElement("p");
+  heroDescription.textContent = COURSE_LANDING_CONFIG.heroDescription;
+  heroCopy.append(heroKicker, heroTitle, heroDescription);
+  hero.append(heroImage, heroCopy);
+
+  const products = document.createElement("section");
+  products.className = "landing-products";
+
+  const productsTitle = document.createElement("h2");
+  productsTitle.textContent = "Продукты";
+
+  const tabs = document.createElement("div");
+  tabs.className = "landing-tabs";
+  const ownTab = document.createElement("button");
+  ownTab.type = "button";
+  ownTab.className = "landing-tab is-active";
+  ownTab.textContent = "Ваши продукты";
+  const allTab = document.createElement("button");
+  allTab.type = "button";
+  allTab.className = "landing-tab";
+  allTab.textContent = "Все продукты";
+  tabs.append(ownTab, allTab);
+
+  const productCard = document.createElement("article");
+  productCard.className = "landing-product-card";
+
+  const productImage = createLandingImage(
+    COURSE_LANDING_CONFIG.productImageUrl,
+    "landing-product-image",
+    COURSE_LANDING_CONFIG.productTitle
+  );
+
+  const productBody = document.createElement("div");
+  productBody.className = "landing-product-body";
+
+  const productTitle = document.createElement("h3");
+  productTitle.textContent = COURSE_LANDING_CONFIG.productTitle;
+
+  const productDescription = document.createElement("p");
+  productDescription.textContent = COURSE_LANDING_CONFIG.productDescription;
+
+  const progress = document.createElement("p");
+  progress.className = "landing-product-progress";
+  progress.textContent = lastLesson?.lessonTitle
+    ? `Продолжить: ${lastLesson.lessonTitle}`
+    : "Начать курс";
+
+  const productMeta = document.createElement("div");
+  productMeta.className = "landing-product-meta";
+  const price = document.createElement("span");
+  price.textContent = COURSE_LANDING_CONFIG.productPrice;
+
+  const continueButton = document.createElement("button");
+  continueButton.className = "landing-continue-button";
+  continueButton.type = "button";
+  continueButton.textContent = COURSE_LANDING_CONFIG.continueButtonText;
+  continueButton.addEventListener("click", () => {
+    continueCourseFromLanding().catch((error) => {
+      showMessage("Не удалось продолжить", error.message, "Все ступени", showModulesScreen);
+    });
+  });
+
+  productMeta.append(price, continueButton);
+  productBody.append(productTitle, productDescription, progress, productMeta);
+  productCard.append(productImage, productBody);
+
+  const search = document.createElement("label");
+  search.className = "landing-search";
+  const searchInput = document.createElement("input");
+  searchInput.type = "search";
+  searchInput.placeholder = COURSE_LANDING_CONFIG.searchPlaceholder;
+  search.append(searchInput);
+
+  const allStepsButton = document.createElement("button");
+  allStepsButton.className = "landing-all-steps";
+  allStepsButton.type = "button";
+  allStepsButton.textContent = "Все ступени";
+  allStepsButton.addEventListener("click", () => {
+    showModulesScreen().catch((error) => {
+      showMessage("Не удалось загрузить ступени", error.message, "Повторить", showModulesScreen);
+    });
+  });
+
+  products.append(productsTitle, tabs, productCard, search, allStepsButton);
+
+  const footer = document.createElement("footer");
+  footer.className = "landing-footer";
+  footer.append(
+    document.createTextNode(COURSE_LANDING_CONFIG.authorName),
+    document.createElement("span"),
+    document.createTextNode("Политика конфиденциальности"),
+    document.createElement("span"),
+    document.createTextNode("Договор оферты")
+  );
+
+  shell.append(header, hero, products, footer);
+  content.append(shell);
+}
+
 function renderModuleSteps(resetLessonState = true) {
   if (resetLessonState) {
     state.currentModuleId = null;
@@ -888,6 +1169,7 @@ async function renderLesson(moduleId, lessonId) {
       rawText: String(block.content || ""),
       highlightBlockId: getBlockStorageId(block, index),
     }));
+    saveLastLessonProgress(moduleId, lesson);
     setHeader(lesson.module_title || module?.title || "Урок", lesson.title, "Читайте в удобном темпе.");
 
     const article = document.createElement("article");
@@ -980,4 +1262,14 @@ document.addEventListener("click", (event) => {
   }
 });
 
-renderModules();
+async function renderApp() {
+  try {
+    await loadModules();
+    renderLandingScreen();
+  } catch (error) {
+    showMessage("Не удалось загрузить курс", error.message, "Повторить", renderApp);
+    syncBackButtons();
+  }
+}
+
+renderApp();

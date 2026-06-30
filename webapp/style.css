@@ -962,6 +962,280 @@ body.mini-app .empty-state p {
   color: var(--muted);
 }
 
+body.mini-app .landing-screen {
+  display: block;
+}
+
+body.mini-app .landing-shell {
+  display: grid;
+  gap: 22px;
+}
+
+body.mini-app .landing-header,
+body.mini-app .landing-product-meta,
+body.mini-app .landing-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+body.mini-app .landing-header {
+  padding: 4px 0 2px;
+}
+
+body.mini-app .landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+body.mini-app .landing-logo {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+body.mini-app .landing-brand strong,
+body.mini-app .landing-brand span {
+  display: block;
+}
+
+body.mini-app .landing-brand strong {
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+body.mini-app .landing-brand span,
+body.mini-app .landing-header-badge,
+body.mini-app .landing-footer {
+  color: var(--muted-2);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+body.mini-app .landing-header-badge {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body.mini-app .landing-hero {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(168, 85, 247, 0.16), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+    var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+}
+
+body.mini-app .landing-hero-image {
+  position: relative;
+  min-height: clamp(220px, 42vw, 360px);
+  overflow: hidden;
+  background: #07080a;
+}
+
+body.mini-app .landing-hero-image img,
+body.mini-app .landing-product-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.08) brightness(0.74);
+}
+
+body.mini-app .landing-image-placeholder {
+  display: grid;
+  min-height: inherit;
+  place-items: center;
+  padding: 34px 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent),
+    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.11), transparent 34%),
+    #07080a;
+  color: var(--text);
+  text-align: center;
+}
+
+body.mini-app .landing-image-placeholder span {
+  color: var(--muted-2);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+
+body.mini-app .landing-image-placeholder strong {
+  margin-top: 8px;
+  font-size: clamp(2.1rem, 10vw, 4.6rem);
+  font-weight: 850;
+  letter-spacing: -0.06em;
+  text-transform: uppercase;
+}
+
+body.mini-app .landing-hero-copy {
+  padding: 24px;
+}
+
+body.mini-app .landing-hero-copy span {
+  color: var(--muted-2);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.22em;
+}
+
+body.mini-app .landing-hero-copy h2,
+body.mini-app .landing-products h2,
+body.mini-app .landing-product-body h3 {
+  margin: 0;
+  color: var(--text);
+}
+
+body.mini-app .landing-hero-copy h2 {
+  margin-top: 8px;
+  font-size: clamp(2.2rem, 10vw, 4.2rem);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+body.mini-app .landing-hero-copy p,
+body.mini-app .landing-product-body p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+body.mini-app .landing-products {
+  display: grid;
+  gap: 15px;
+}
+
+body.mini-app .landing-products h2 {
+  font-size: clamp(1.6rem, 6vw, 2.3rem);
+  letter-spacing: -0.04em;
+}
+
+body.mini-app .landing-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body.mini-app .landing-tab {
+  flex: 1;
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+}
+
+body.mini-app .landing-tab.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+body.mini-app .landing-product-card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+body.mini-app .landing-product-image {
+  min-height: 180px;
+  background: #08090b;
+}
+
+body.mini-app .landing-product-body {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+body.mini-app .landing-product-body h3 {
+  font-size: 1.35rem;
+}
+
+body.mini-app .landing-product-body p {
+  margin: 0;
+}
+
+body.mini-app .landing-product-progress {
+  color: var(--text) !important;
+  font-weight: 720;
+}
+
+body.mini-app .landing-product-meta span {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+body.mini-app .landing-continue-button,
+body.mini-app .landing-all-steps {
+  min-height: 48px;
+  border: 0;
+  border-radius: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+body.mini-app .landing-continue-button {
+  padding: 0 20px;
+  background: var(--text);
+  color: var(--bg);
+}
+
+body.mini-app .landing-all-steps {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+body.mini-app .landing-search input {
+  min-height: 48px;
+  margin: 0;
+  border-color: var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+}
+
+body.mini-app .landing-search input::placeholder {
+  color: var(--muted-2);
+}
+
+body.mini-app .landing-footer {
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 12px 0 4px;
+  text-align: center;
+}
+
+body.mini-app .landing-footer span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--muted-2);
+}
+
 @media (min-width: 620px) {
   body.mini-app .app-shell {
     padding-right: clamp(26px, 4vw, 42px);
@@ -970,6 +1244,15 @@ body.mini-app .empty-state p {
 
   body.mini-app .lesson {
     padding: 28px;
+  }
+
+  body.mini-app .landing-product-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.82fr) minmax(0, 1fr);
+  }
+
+  body.mini-app .landing-product-image {
+    min-height: 100%;
   }
 }
 
