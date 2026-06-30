@@ -8,7 +8,7 @@ const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
 const MINI_APP_DARK_COLOR = "#0b0d0f";
 const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
-let savedSelectionRange = null;
+let pendingHighlightSelection = null;
 
 const stepLabels = [
   "Первая ступень",
@@ -30,7 +30,6 @@ const state = {
   currentModuleId: null,
   currentLessonId: null,
   currentBlocks: [],
-  activeSelection: null,
   activeHighlight: null,
   selectionToolbar: null,
   copyNotice: null,
@@ -232,65 +231,56 @@ function getTextNodeOffset(root, targetNode, targetOffset) {
   return null;
 }
 
-function getParagraphRanges(text) {
-  const ranges = [];
-  const separatorPattern = /\n{2,}/g;
-  let start = 0;
-  let match = separatorPattern.exec(text);
+function renderTextBlockWithHighlights(blockElement, rawText, highlights) {
+  blockElement.replaceChildren();
+  const safeHighlights = [...highlights]
+    .filter(
+      (highlight) =>
+        HIGHLIGHT_COLORS.includes(highlight.color) &&
+        highlight.startOffset >= 0 &&
+        highlight.endOffset > highlight.startOffset &&
+        highlight.endOffset <= rawText.length
+    )
+    .sort((left, right) => left.startOffset - right.startOffset || left.endOffset - right.endOffset);
 
-  while (match) {
-    if (match.index > start) {
-      ranges.push({ start, end: match.index });
+  const paragraph = document.createElement("p");
+  paragraph.className = "lesson-text-content";
+  let cursor = 0;
+  let lastEnd = 0;
+
+  safeHighlights.forEach((highlight) => {
+    if (highlight.startOffset < lastEnd) {
+      return;
     }
-    start = separatorPattern.lastIndex;
-    match = separatorPattern.exec(text);
-  }
-
-  if (start < text.length) {
-    ranges.push({ start, end: text.length });
-  }
-
-  return ranges.length > 0 ? ranges : [{ start: 0, end: 0 }];
-}
-
-function appendHighlightedText(parent, text, start, end, highlights) {
-  let cursor = start;
-  const relevantHighlights = highlights.filter(
-    (highlight) => highlight.startOffset < end && highlight.endOffset > start
-  );
-
-  relevantHighlights.forEach((highlight) => {
-    const highlightStart = Math.max(highlight.startOffset, start);
-    const highlightEnd = Math.min(highlight.endOffset, end);
-
-    if (cursor < highlightStart) {
-      parent.append(document.createTextNode(text.slice(cursor, highlightStart)));
+    if (cursor < highlight.startOffset) {
+      paragraph.append(document.createTextNode(rawText.slice(cursor, highlight.startOffset)));
     }
 
-    const span = document.createElement("span");
-    span.className = `highlight highlight-${highlight.color}`;
-    span.dataset.highlightId = highlight.id;
-    span.dataset.blockId = highlight.blockId;
-    span.textContent = text.slice(highlightStart, highlightEnd);
-    parent.append(span);
-    cursor = highlightEnd;
+    const mark = document.createElement("mark");
+    mark.className = `highlight highlight-${highlight.color}`;
+    mark.dataset.highlightId = highlight.id;
+    mark.dataset.blockId = highlight.blockId;
+    mark.dataset.startOffset = String(highlight.startOffset);
+    mark.dataset.endOffset = String(highlight.endOffset);
+    mark.dataset.color = highlight.color;
+    mark.textContent = rawText.slice(highlight.startOffset, highlight.endOffset);
+    paragraph.append(mark);
+
+    cursor = highlight.endOffset;
+    lastEnd = highlight.endOffset;
   });
 
-  if (cursor < end) {
-    parent.append(document.createTextNode(text.slice(cursor, end)));
+  if (cursor < rawText.length) {
+    paragraph.append(document.createTextNode(rawText.slice(cursor)));
   }
+
+  blockElement.append(paragraph);
 }
 
 function renderTextBlockContent(blockElement, block) {
-  const text = String(block.content || "");
-  const highlights = getBlockHighlights(block.highlightBlockId || getBlockStorageId(block), text.length);
-  blockElement.replaceChildren();
-
-  getParagraphRanges(text).forEach((range) => {
-    const paragraph = document.createElement("p");
-    appendHighlightedText(paragraph, text, range.start, range.end, highlights);
-    blockElement.append(paragraph);
-  });
+  const rawText = block.rawText ?? String(block.content || "");
+  const highlights = getBlockHighlights(block.highlightBlockId || getBlockStorageId(block), rawText.length);
+  renderTextBlockWithHighlights(blockElement, rawText, highlights);
 }
 
 function rerenderLessonTextBlocks() {
@@ -311,40 +301,32 @@ function selectionTouchesBlockedElement(selection) {
   return Boolean(element?.closest?.("button, a, iframe, img, .lesson-navigation, .selection-toolbar"));
 }
 
-function getLessonTextRangeFromRange(range) {
-  if (!range || range.collapsed || !range.toString().trim()) {
-    return null;
-  }
-
+function getSelectionOffsetsWithinBlock(blockElement, range) {
   const startBlock = getElementFromNode(range.startContainer)?.closest?.(".lesson-text-block");
   const endBlock = getElementFromNode(range.endContainer)?.closest?.(".lesson-text-block");
-
-  if (!startBlock || !endBlock || startBlock !== endBlock) {
+  if (!startBlock || !endBlock || startBlock !== endBlock || startBlock !== blockElement) {
     return null;
   }
 
-  const startOffset = getTextNodeOffset(startBlock, range.startContainer, range.startOffset);
-  const endOffset = getTextNodeOffset(startBlock, range.endContainer, range.endOffset);
-  if (startOffset === null || endOffset === null || endOffset <= startOffset) {
+  const selectedText = range.toString();
+  if (!selectedText.trim()) {
     return null;
   }
 
-  const rect = range.getBoundingClientRect();
-  if (!rect || (rect.width === 0 && rect.height === 0)) {
+  const preRange = document.createRange();
+  preRange.selectNodeContents(blockElement);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  const startOffset = preRange.toString().length;
+  const endOffset = startOffset + selectedText.length;
+
+  if (startOffset === endOffset) {
     return null;
   }
 
-  return {
-    lessonId: state.currentLessonId,
-    blockId: startBlock.dataset.blockId,
-    startOffset,
-    endOffset,
-    rect,
-    range,
-  };
+  return { startOffset, endOffset, selectedText };
 }
 
-function getSelectedLessonTextRange() {
+function getPendingHighlightSelectionFromCurrentSelection() {
   const selection = window.getSelection();
   if (
     !selection ||
@@ -356,13 +338,42 @@ function getSelectedLessonTextRange() {
     return null;
   }
 
-  return getLessonTextRangeFromRange(selection.getRangeAt(0).cloneRange());
+  const range = selection.getRangeAt(0);
+  const startBlock = getElementFromNode(range.startContainer)?.closest?.(".lesson-text-block");
+  const endBlock = getElementFromNode(range.endContainer)?.closest?.(".lesson-text-block");
+  if (!startBlock || !endBlock) {
+    return null;
+  }
+  if (startBlock !== endBlock) {
+    showCopyNotice("Выделяйте текст внутри одного блока");
+    return null;
+  }
+
+  const offsets = getSelectionOffsetsWithinBlock(startBlock, range);
+  if (!offsets) {
+    return null;
+  }
+
+  const rect = range.getBoundingClientRect();
+  if (!rect || (rect.width === 0 && rect.height === 0)) {
+    return null;
+  }
+
+  const rawText = startBlock.dataset.rawText || "";
+  return {
+    lessonId: state.currentLessonId,
+    blockId: startBlock.dataset.blockId,
+    startOffset: offsets.startOffset,
+    endOffset: offsets.endOffset,
+    selectedText: offsets.selectedText,
+    rect,
+    rawText,
+  };
 }
 
 function hideSelectionToolbar() {
-  state.activeSelection = null;
   state.activeHighlight = null;
-  savedSelectionRange = null;
+  pendingHighlightSelection = null;
   if (state.selectionToolbar) {
     state.selectionToolbar.hidden = true;
   }
@@ -404,9 +415,6 @@ function ensureSelectionToolbar() {
   const toolbar = document.createElement("div");
   toolbar.className = "selection-toolbar";
   toolbar.hidden = true;
-  toolbar.addEventListener("pointerdown", protectToolbarPointer);
-  toolbar.addEventListener("mousedown", protectToolbarPointer);
-  toolbar.addEventListener("touchstart", protectToolbarPointer, { passive: false });
 
   HIGHLIGHT_COLORS.forEach((color) => {
     const button = document.createElement("button");
@@ -456,7 +464,7 @@ function ensureSelectionToolbar() {
 }
 
 function showToolbarForCurrentSelection() {
-  const selectedRange = getSelectedLessonTextRange();
+  const selectedRange = getPendingHighlightSelectionFromCurrentSelection();
   if (!selectedRange) {
     if (!state.activeHighlight) {
       hideSelectionToolbar();
@@ -464,8 +472,7 @@ function showToolbarForCurrentSelection() {
     return;
   }
 
-  state.activeSelection = selectedRange;
-  savedSelectionRange = selectedRange.range.cloneRange();
+  pendingHighlightSelection = selectedRange;
   state.activeHighlight = null;
   setToolbarMode("selection");
   positionToolbar(selectedRange.rect);
@@ -482,17 +489,21 @@ function applyHighlightColor(color) {
       highlight.id === state.activeHighlight.id ? { ...highlight, color } : highlight
     );
     writeLessonHighlights(updated);
-  } else if (savedSelectionRange) {
-    const savedRange = getLessonTextRangeFromRange(savedSelectionRange.cloneRange());
-    if (!savedRange) {
+  } else if (pendingHighlightSelection) {
+    const selection = pendingHighlightSelection;
+    if (
+      !selection.blockId ||
+      selection.startOffset === selection.endOffset ||
+      !selection.selectedText.trim()
+    ) {
       hideSelectionToolbar();
       return;
     }
     const nextHighlight = {
       id: makeHighlightId(),
-      blockId: String(savedRange.blockId),
-      startOffset: savedRange.startOffset,
-      endOffset: savedRange.endOffset,
+      blockId: String(selection.blockId),
+      startOffset: selection.startOffset,
+      endOffset: selection.endOffset,
       color,
     };
     const withoutOverlaps = highlights.filter(
@@ -511,13 +522,21 @@ function applyHighlightColor(color) {
 
 function showToolbarForHighlight(highlightElement) {
   const highlights = readLessonHighlights();
-  const highlight = highlights.find((item) => item.id === highlightElement.dataset.highlightId);
+  const highlight = highlights.find(
+    (item) =>
+      item.id === highlightElement.dataset.highlightId ||
+      (
+        item.blockId === highlightElement.dataset.blockId &&
+        item.startOffset === Number(highlightElement.dataset.startOffset) &&
+        item.endOffset === Number(highlightElement.dataset.endOffset) &&
+        item.color === highlightElement.dataset.color
+      )
+  );
   if (!highlight) {
     return;
   }
 
-  state.activeSelection = null;
-  savedSelectionRange = null;
+  pendingHighlightSelection = null;
   state.activeHighlight = highlight;
   window.getSelection()?.removeAllRanges();
   setToolbarMode("highlight");
@@ -788,6 +807,7 @@ function appendTextBlock(article, block) {
   blockElement.className = "lesson-block lesson-block-text lesson-text-block";
   blockElement.dataset.blockId = block.highlightBlockId || getBlockStorageId(block);
   blockElement.dataset.lessonId = String(state.currentLessonId);
+  blockElement.dataset.rawText = block.rawText ?? String(block.content || "");
   renderTextBlockContent(blockElement, block);
   article.append(blockElement);
 }
@@ -856,6 +876,7 @@ async function renderLesson(moduleId, lessonId) {
     ]);
     state.currentBlocks = blocks.map((block, index) => ({
       ...block,
+      rawText: String(block.content || ""),
       highlightBlockId: getBlockStorageId(block, index),
     }));
     setHeader(lesson.module_title || module?.title || "Урок", lesson.title, "Читайте в удобном темпе.");
@@ -920,7 +941,6 @@ configureTelegramWebApp();
 
 document.addEventListener("copy", blockProtectedLessonEvent);
 document.addEventListener("cut", blockProtectedLessonEvent);
-document.addEventListener("contextmenu", blockProtectedLessonEvent);
 document.addEventListener("dragstart", blockProtectedLessonEvent);
 document.addEventListener("keydown", handleProtectedKeydown);
 
@@ -930,7 +950,7 @@ document.addEventListener("selectionchange", () => {
 document.addEventListener("mouseup", showToolbarForCurrentSelection);
 document.addEventListener("keyup", showToolbarForCurrentSelection);
 document.addEventListener("touchend", () => {
-  window.setTimeout(showToolbarForCurrentSelection, 240);
+  window.setTimeout(showToolbarForCurrentSelection, 100);
 });
 document.addEventListener("scroll", hideSelectionToolbar, true);
 document.addEventListener("click", (event) => {

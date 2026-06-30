@@ -8,7 +8,7 @@ This repository has `PLANS.md` at the project root. This document is maintained 
 
 After this change, a learner can select text inside a lesson, choose a color from a small floating toolbar, and see that fragment highlighted when they reopen the same lesson on the same device. The Mini App should still allow text selection because selection is required for highlighting, but ordinary copying through keyboard shortcuts, context menus, cut events, and drag should be blocked for lesson content.
 
-The visible proof is simple: open the Mini App, open a lesson, select a few words inside a text block, tap a color, leave the lesson, reopen it, and see the highlight restored. Attempting Ctrl+C or the context menu inside the lesson should not copy the text and should show a short "Копирование отключено" notice.
+The visible proof is simple: open the Mini App, open a lesson, select a few words inside a text block, tap a color, leave the lesson, reopen it, and see the highlight restored. Attempting Ctrl+C or Cmd+C inside the lesson should not copy the text and should show a short "Копирование отключено" notice.
 
 ## Progress
 
@@ -19,6 +19,9 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
 - [x] (2026-06-29 11:54Z) Saved and restored highlights from `localStorage` under `lesson_highlights_<lesson_id>`.
 - [x] (2026-06-29 11:54Z) Added CSS for highlights, toolbar, protected lesson text, and protected images.
 - [x] (2026-06-29 11:54Z) Validated syntax and checked local lesson rendering, stable text block ids, and absence of browser console errors.
+- [x] (2026-06-30 11:31Z) Replaced the Range-after-click highlighting path with a stable `pendingHighlightSelection` object containing `blockId`, `startOffset`, `endOffset`, and `selectedText`.
+- [x] (2026-06-30 11:31Z) Reworked text block rendering to rebuild from raw text and safe `mark` nodes using character offsets.
+- [x] (2026-06-30 11:31Z) Stopped blocking `contextmenu` on lesson text so mobile text selection is not broken before the copy event can be blocked.
 
 ## Surprises & Discoveries
 
@@ -30,6 +33,9 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
 
 - Observation: The in-app browser automation sandbox did not allow programmatic use of Selection or DOM Event constructors for a full automated selection/copy scenario.
   Evidence: Browser evaluation returned `selection.removeAllRanges is not a function` and `Event is not a constructor`, while normal page load and DOM/CSS checks still reported zero console errors.
+
+- Observation: Reusing a saved DOM Range after toolbar interaction is still too fragile because the page may be rerendered with `mark` elements and paragraph wrappers, changing the DOM structure beneath the saved Range.
+  Evidence: The user reported that selecting one word such as "Другие" could highlight a different word even after the earlier cloneRange patch.
 
 ## Decision Log
 
@@ -45,9 +51,19 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
   Rationale: Existing old lessons must support highlights without requiring a database migration or backend change.
   Date/Author: 2026-06-29 / Codex
 
+- Decision: Store the pending selection as plain character offsets immediately when the user selects text, then ignore `window.getSelection()` when a color button is pressed.
+  Rationale: A toolbar click can change or clear the browser selection. Character offsets inside the original raw text are stable across focus changes and toolbar interactions.
+  Date/Author: 2026-06-30 / Codex
+
+- Decision: Do not prevent the `contextmenu` event inside lesson text.
+  Rationale: On mobile Telegram/WebView clients, preventing context menu and touch-related events can break native text selection. Copy remains blocked through `copy`, `cut`, and keyboard copy handlers.
+  Date/Author: 2026-06-30 / Codex
+
 ## Outcomes & Retrospective
 
-Implemented the requested MVP in the Mini App frontend. Lesson text remains selectable, a floating toolbar provides five highlight colors and a remove action, highlights are persisted in localStorage per lesson, and copying/cutting/context-menu/drag/keyboard copy attempts inside lessons are blocked with a short notice. Backend, bot, database, Railway startup, and admin logic were not changed.
+Implemented the requested MVP in the Mini App frontend. Lesson text remains selectable, a floating toolbar provides five highlight colors and a remove action, highlights are persisted in localStorage per lesson, and copying/cutting/drag/keyboard copy attempts inside lessons are blocked with a short notice. Backend, bot, database, Railway startup, and admin logic were not changed.
+
+The 2026-06-30 revision changes the core highlight model so color selection no longer depends on the DOM Range after the toolbar click. The app now stores offsets at selection time and rebuilds each text block from raw text and safe `mark` elements.
 
 Automated validation covered syntax and local rendering. A fully automated real text-selection test was limited by the browser automation sandbox, so final phone/desktop confirmation should be done manually in Telegram and a normal browser.
 
