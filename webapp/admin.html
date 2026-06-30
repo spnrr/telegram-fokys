@@ -32,6 +32,65 @@
       </section>
 
       <section id="adminPanel" class="admin-grid" hidden>
+        <article class="panel wide-panel">
+          <h2>Настройки главного экрана</h2>
+          <form id="landingSettingsForm" class="stack-form">
+            <label>
+              Название бренда
+              <input id="settingBrandTitle" type="text" maxlength="160">
+            </label>
+            <label>
+              Подпись бренда
+              <input id="settingBrandSubtitle" type="text" maxlength="160">
+            </label>
+            <label>
+              Ссылка на hero-изображение
+              <input id="settingHeroImageUrl" type="url" placeholder="https://...">
+            </label>
+            <label>
+              Маленький текст hero-блока
+              <input id="settingHeroKicker" type="text" maxlength="160">
+            </label>
+            <label>
+              Заголовок hero-блока
+              <input id="settingHeroTitle" type="text" maxlength="160">
+            </label>
+            <label>
+              Описание hero-блока
+              <textarea id="settingHeroDescription" rows="3"></textarea>
+            </label>
+            <label>
+              Ссылка на изображение продукта
+              <input id="settingProductImageUrl" type="url" placeholder="https://...">
+            </label>
+            <label>
+              Название продукта
+              <input id="settingProductTitle" type="text" maxlength="160">
+            </label>
+            <label>
+              Описание продукта
+              <textarea id="settingProductDescription" rows="3"></textarea>
+            </label>
+            <label>
+              Цена
+              <input id="settingProductPrice" type="text" maxlength="160">
+            </label>
+            <label>
+              Текст кнопки
+              <input id="settingContinueButtonText" type="text" maxlength="160">
+            </label>
+            <label>
+              Placeholder поиска
+              <input id="settingSearchPlaceholder" type="text" maxlength="160">
+            </label>
+            <label>
+              Имя автора в футере
+              <input id="settingAuthorName" type="text" maxlength="160">
+            </label>
+            <button class="primary-button" type="submit">Сохранить настройки</button>
+          </form>
+        </article>
+
         <article class="panel">
           <h2>Создать модуль</h2>
           <form id="moduleForm" class="stack-form">
@@ -89,11 +148,28 @@
       const courseEditor = document.querySelector("#courseEditor");
       const status = document.querySelector("#status");
       const logoutButton = document.querySelector("#logoutButton");
+      const landingSettingsForm = document.querySelector("#landingSettingsForm");
+      const landingSettingsFields = {
+        brandTitle: document.querySelector("#settingBrandTitle"),
+        brandSubtitle: document.querySelector("#settingBrandSubtitle"),
+        heroImageUrl: document.querySelector("#settingHeroImageUrl"),
+        heroKicker: document.querySelector("#settingHeroKicker"),
+        heroTitle: document.querySelector("#settingHeroTitle"),
+        heroDescription: document.querySelector("#settingHeroDescription"),
+        productImageUrl: document.querySelector("#settingProductImageUrl"),
+        productTitle: document.querySelector("#settingProductTitle"),
+        productDescription: document.querySelector("#settingProductDescription"),
+        productPrice: document.querySelector("#settingProductPrice"),
+        continueButtonText: document.querySelector("#settingContinueButtonText"),
+        searchPlaceholder: document.querySelector("#settingSearchPlaceholder"),
+        authorName: document.querySelector("#settingAuthorName"),
+      };
 
       let adminPassword = sessionStorage.getItem("courseAdminPassword") || "";
       let modules = [];
       let lessons = [];
       let blocksByLesson = new Map();
+      let landingSettings = {};
 
       function setStatus(message, isError = false) {
         status.textContent = message;
@@ -138,6 +214,18 @@
         lessonModule.replaceChildren();
         modules.forEach((module) => lessonModule.append(createOption(module)));
         lessonModule.disabled = modules.length === 0;
+      }
+
+      function renderLandingSettings() {
+        Object.entries(landingSettingsFields).forEach(([key, field]) => {
+          field.value = landingSettings[key] || "";
+        });
+      }
+
+      function collectLandingSettings() {
+        return Object.fromEntries(
+          Object.entries(landingSettingsFields).map(([key, field]) => [key, field.value])
+        );
       }
 
       function createField(labelText, value, elementType = "input") {
@@ -497,12 +585,16 @@
 
       async function loadData() {
         try {
-          modules = await requestJson("/api/admin/modules");
-          lessons = await requestJson("/api/admin/lessons");
+          [landingSettings, modules, lessons] = await Promise.all([
+            requestJson("/api/admin/course-settings"),
+            requestJson("/api/admin/modules"),
+            requestJson("/api/admin/lessons"),
+          ]);
           const blockPairs = await Promise.all(
             lessons.map(async (lesson) => [lesson.id, await requestJson(`/api/lessons/${lesson.id}/blocks`)])
           );
           blocksByLesson = new Map(blockPairs);
+          renderLandingSettings();
           renderEditor();
         } catch (error) {
           setStatus(error.message, true);
@@ -531,6 +623,20 @@
         sessionStorage.removeItem("courseAdminPassword");
         loginPanel.hidden = false;
         adminPanel.hidden = true;
+      });
+
+      landingSettingsForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          landingSettings = await requestJson("/api/admin/course-settings", {
+            method: "PUT",
+            body: JSON.stringify(collectLandingSettings()),
+          });
+          renderLandingSettings();
+          setStatus("Настройки главного экрана сохранены.");
+        } catch (error) {
+          setStatus(error.message, true);
+        }
       });
 
       moduleForm.addEventListener("submit", async (event) => {

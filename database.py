@@ -6,6 +6,22 @@ from typing import Any
 
 DEFAULT_DATABASE_PATH = "course.db"
 
+DEFAULT_COURSE_SETTINGS = {
+    "brandTitle": "Протокол 0.",
+    "brandSubtitle": "закрытый курс",
+    "heroImageUrl": "",
+    "heroKicker": "ПРОТОКОЛ",
+    "heroTitle": "Следуй протоколу",
+    "heroDescription": "Закрытая система уроков, фокуса и движения вперёд.",
+    "productImageUrl": "",
+    "productTitle": "Протокол 0.",
+    "productDescription": "Ты уже здесь. Обратного пути нет.",
+    "productPrice": "Бесплатно",
+    "continueButtonText": "Продолжить",
+    "searchPlaceholder": "Поиск по названию",
+    "authorName": "Protocol",
+}
+
 
 def get_database_path() -> Path:
     return Path(os.getenv("DATABASE_PATH", DEFAULT_DATABASE_PATH)).expanduser()
@@ -53,8 +69,49 @@ def init_db() -> None:
                 position INTEGER NOT NULL,
                 FOREIGN KEY (lesson_id) REFERENCES lessons(id) ON DELETE CASCADE
             );
+
+            CREATE TABLE IF NOT EXISTS course_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             """
         )
+        connection.executemany(
+            """
+            INSERT OR IGNORE INTO course_settings (key, value)
+            VALUES (?, ?)
+            """,
+            DEFAULT_COURSE_SETTINGS.items(),
+        )
+
+
+def get_course_settings() -> dict[str, str]:
+    with get_connection() as connection:
+        rows = connection.execute("SELECT key, value FROM course_settings").fetchall()
+
+    settings = dict(DEFAULT_COURSE_SETTINGS)
+    settings.update({str(row["key"]): str(row["value"]) for row in rows})
+    return settings
+
+
+def update_course_settings(values: dict[str, Any]) -> dict[str, str]:
+    allowed_keys = set(DEFAULT_COURSE_SETTINGS)
+    clean_values = {
+        key: str(value or "").strip()
+        for key, value in values.items()
+        if key in allowed_keys
+    }
+
+    with get_connection() as connection:
+        connection.executemany(
+            """
+            INSERT INTO course_settings (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """,
+            clean_values.items(),
+        )
+    return get_course_settings()
 
 
 def next_sort_order(table: str, module_id: int | None = None) -> int:

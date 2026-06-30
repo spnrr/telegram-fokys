@@ -11,7 +11,7 @@ const MINI_APP_DARK_COLOR = "#0b0d0f";
 const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
 let pendingHighlightSelection = null;
 
-const COURSE_LANDING_CONFIG = {
+const DEFAULT_COURSE_LANDING_CONFIG = {
   brandTitle: "Протокол 0.",
   brandSubtitle: "закрытый курс",
   heroImageUrl: "",
@@ -26,6 +26,7 @@ const COURSE_LANDING_CONFIG = {
   searchPlaceholder: "Поиск по названию",
   authorName: "Protocol",
 };
+let courseLandingConfig = { ...DEFAULT_COURSE_LANDING_CONFIG };
 
 const LAST_LESSON_STORAGE_KEYS = {
   lessonId: "protocol_last_lesson_id",
@@ -662,6 +663,16 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+async function loadCourseLandingConfig() {
+  try {
+    const settings = await fetchJson("/api/course-settings");
+    courseLandingConfig = { ...DEFAULT_COURSE_LANDING_CONFIG, ...settings };
+  } catch (error) {
+    console.debug("Course landing settings fallback used:", error);
+    courseLandingConfig = { ...DEFAULT_COURSE_LANDING_CONFIG };
+  }
+}
+
 async function loadModules() {
   state.modules = await fetchJson("/api/modules");
 }
@@ -906,9 +917,9 @@ function renderLandingScreen() {
 
   const brandText = document.createElement("div");
   const brandTitle = document.createElement("strong");
-  brandTitle.textContent = COURSE_LANDING_CONFIG.brandTitle;
+  brandTitle.textContent = courseLandingConfig.brandTitle;
   const brandSubtitle = document.createElement("span");
-  brandSubtitle.textContent = COURSE_LANDING_CONFIG.brandSubtitle;
+  brandSubtitle.textContent = courseLandingConfig.brandSubtitle;
   brandText.append(brandTitle, brandSubtitle);
   brand.append(logo, brandText);
 
@@ -920,19 +931,19 @@ function renderLandingScreen() {
   const hero = document.createElement("section");
   hero.className = "landing-hero";
   const heroImage = createLandingImage(
-    COURSE_LANDING_CONFIG.heroImageUrl,
+    courseLandingConfig.heroImageUrl,
     "landing-hero-image",
-    COURSE_LANDING_CONFIG.heroKicker
+    courseLandingConfig.heroKicker
   );
 
   const heroCopy = document.createElement("div");
   heroCopy.className = "landing-hero-copy";
   const heroKicker = document.createElement("span");
-  heroKicker.textContent = COURSE_LANDING_CONFIG.heroKicker;
+  heroKicker.textContent = courseLandingConfig.heroKicker;
   const heroTitle = document.createElement("h2");
-  heroTitle.textContent = COURSE_LANDING_CONFIG.heroTitle;
+  heroTitle.textContent = courseLandingConfig.heroTitle;
   const heroDescription = document.createElement("p");
-  heroDescription.textContent = COURSE_LANDING_CONFIG.heroDescription;
+  heroDescription.textContent = courseLandingConfig.heroDescription;
   heroCopy.append(heroKicker, heroTitle, heroDescription);
   hero.append(heroImage, heroCopy);
 
@@ -958,19 +969,19 @@ function renderLandingScreen() {
   productCard.className = "landing-product-card";
 
   const productImage = createLandingImage(
-    COURSE_LANDING_CONFIG.productImageUrl,
+    courseLandingConfig.productImageUrl,
     "landing-product-image",
-    COURSE_LANDING_CONFIG.productTitle
+    courseLandingConfig.productTitle
   );
 
   const productBody = document.createElement("div");
   productBody.className = "landing-product-body";
 
   const productTitle = document.createElement("h3");
-  productTitle.textContent = COURSE_LANDING_CONFIG.productTitle;
+  productTitle.textContent = courseLandingConfig.productTitle;
 
   const productDescription = document.createElement("p");
-  productDescription.textContent = COURSE_LANDING_CONFIG.productDescription;
+  productDescription.textContent = courseLandingConfig.productDescription;
 
   const progress = document.createElement("p");
   progress.className = "landing-product-progress";
@@ -981,12 +992,12 @@ function renderLandingScreen() {
   const productMeta = document.createElement("div");
   productMeta.className = "landing-product-meta";
   const price = document.createElement("span");
-  price.textContent = COURSE_LANDING_CONFIG.productPrice;
+  price.textContent = courseLandingConfig.productPrice;
 
   const continueButton = document.createElement("button");
   continueButton.className = "landing-continue-button";
   continueButton.type = "button";
-  continueButton.textContent = COURSE_LANDING_CONFIG.continueButtonText;
+  continueButton.textContent = courseLandingConfig.continueButtonText;
   continueButton.addEventListener("click", () => {
     continueCourseFromLanding().catch((error) => {
       showMessage("Не удалось продолжить", error.message, "Все ступени", showModulesScreen);
@@ -1001,7 +1012,7 @@ function renderLandingScreen() {
   search.className = "landing-search";
   const searchInput = document.createElement("input");
   searchInput.type = "search";
-  searchInput.placeholder = COURSE_LANDING_CONFIG.searchPlaceholder;
+  searchInput.placeholder = courseLandingConfig.searchPlaceholder;
   search.append(searchInput);
 
   const allStepsButton = document.createElement("button");
@@ -1019,7 +1030,7 @@ function renderLandingScreen() {
   const footer = document.createElement("footer");
   footer.className = "landing-footer";
   footer.append(
-    document.createTextNode(COURSE_LANDING_CONFIG.authorName),
+    document.createTextNode(courseLandingConfig.authorName),
     document.createElement("span"),
     document.createTextNode("Политика конфиденциальности"),
     document.createElement("span"),
@@ -1264,7 +1275,7 @@ document.addEventListener("click", (event) => {
 
 async function renderApp() {
   try {
-    await loadModules();
+    await Promise.all([loadModules(), loadCourseLandingConfig()]);
     renderLandingScreen();
   } catch (error) {
     showMessage("Не удалось загрузить курс", error.message, "Повторить", renderApp);

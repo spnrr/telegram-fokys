@@ -66,6 +66,20 @@ def create_app() -> Flask:
         except (TypeError, ValueError):
             return None
 
+    def validate_course_settings(payload: dict[str, Any]) -> tuple[dict[str, str], tuple[Response, int] | None]:
+        settings: dict[str, str] = {}
+        for key in database.DEFAULT_COURSE_SETTINGS:
+            value = str(payload.get(key, "") or "").strip()
+            if key in {"heroImageUrl", "productImageUrl"} and value and not (
+                value.startswith("http://") or value.startswith("https://")
+            ):
+                return {}, (
+                    jsonify({"error": "Image URLs must be empty or start with http:// or https://"}),
+                    400,
+                )
+            settings[key] = value[:1000]
+        return settings, None
+
     @app.get("/")
     def index() -> Response:
         return send_from_directory(WEBAPP_DIR, "index.html")
@@ -81,6 +95,10 @@ def create_app() -> Flask:
     @app.get("/api/modules")
     def api_modules() -> Response:
         return jsonify(database.list_modules())
+
+    @app.get("/api/course-settings")
+    def api_course_settings() -> Response:
+        return jsonify(database.get_course_settings())
 
     @app.get("/api/modules/<int:module_id>/lessons")
     def api_module_lessons(module_id: int) -> tuple[Response, int] | Response:
@@ -116,6 +134,24 @@ def create_app() -> Flask:
         if denied is not None:
             return denied
         return jsonify(database.list_modules())
+
+    @app.get("/api/admin/course-settings")
+    def api_admin_course_settings() -> tuple[Response, int] | Response:
+        denied = require_admin_password()
+        if denied is not None:
+            return denied
+        return jsonify(database.get_course_settings())
+
+    @app.put("/api/admin/course-settings")
+    def api_update_course_settings() -> tuple[Response, int] | Response:
+        denied = require_admin_password()
+        if denied is not None:
+            return denied
+
+        settings, error = validate_course_settings(get_json_payload())
+        if error is not None:
+            return error
+        return jsonify(database.update_course_settings(settings))
 
     @app.post("/api/admin/modules")
     def api_create_module() -> tuple[Response, int]:
