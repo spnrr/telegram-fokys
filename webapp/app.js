@@ -8,6 +8,7 @@ const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
 const MINI_APP_DARK_COLOR = "#0b0d0f";
 const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
+let savedSelectionRange = null;
 
 const stepLabels = [
   "Первая ступень",
@@ -310,19 +311,11 @@ function selectionTouchesBlockedElement(selection) {
   return Boolean(element?.closest?.("button, a, iframe, img, .lesson-navigation, .selection-toolbar"));
 }
 
-function getSelectedLessonTextRange() {
-  const selection = window.getSelection();
-  if (
-    !selection ||
-    selection.rangeCount === 0 ||
-    selection.isCollapsed ||
-    !selection.toString().trim() ||
-    selectionTouchesBlockedElement(selection)
-  ) {
+function getLessonTextRangeFromRange(range) {
+  if (!range || range.collapsed || !range.toString().trim()) {
     return null;
   }
 
-  const range = selection.getRangeAt(0);
   const startBlock = getElementFromNode(range.startContainer)?.closest?.(".lesson-text-block");
   const endBlock = getElementFromNode(range.endContainer)?.closest?.(".lesson-text-block");
 
@@ -347,15 +340,37 @@ function getSelectedLessonTextRange() {
     startOffset,
     endOffset,
     rect,
+    range,
   };
+}
+
+function getSelectedLessonTextRange() {
+  const selection = window.getSelection();
+  if (
+    !selection ||
+    selection.rangeCount === 0 ||
+    selection.isCollapsed ||
+    !selection.toString().trim() ||
+    selectionTouchesBlockedElement(selection)
+  ) {
+    return null;
+  }
+
+  return getLessonTextRangeFromRange(selection.getRangeAt(0).cloneRange());
 }
 
 function hideSelectionToolbar() {
   state.activeSelection = null;
   state.activeHighlight = null;
+  savedSelectionRange = null;
   if (state.selectionToolbar) {
     state.selectionToolbar.hidden = true;
   }
+}
+
+function protectToolbarPointer(event) {
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function positionToolbar(rect) {
@@ -389,8 +404,9 @@ function ensureSelectionToolbar() {
   const toolbar = document.createElement("div");
   toolbar.className = "selection-toolbar";
   toolbar.hidden = true;
-  toolbar.addEventListener("mousedown", (event) => event.preventDefault());
-  toolbar.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
+  toolbar.addEventListener("pointerdown", protectToolbarPointer);
+  toolbar.addEventListener("mousedown", protectToolbarPointer);
+  toolbar.addEventListener("touchstart", protectToolbarPointer, { passive: false });
 
   HIGHLIGHT_COLORS.forEach((color) => {
     const button = document.createElement("button");
@@ -398,6 +414,17 @@ function ensureSelectionToolbar() {
     button.type = "button";
     button.dataset.color = color;
     button.setAttribute("aria-label", `Выделить цветом: ${color}`);
+    button.addEventListener("pointerdown", protectToolbarPointer);
+    button.addEventListener("mousedown", protectToolbarPointer);
+    button.addEventListener("touchstart", protectToolbarPointer, { passive: false });
+    button.addEventListener("pointerup", (event) => {
+      protectToolbarPointer(event);
+      applyHighlightColor(color);
+    });
+    button.addEventListener("touchend", (event) => {
+      protectToolbarPointer(event);
+      applyHighlightColor(color);
+    }, { passive: false });
     button.addEventListener("click", () => applyHighlightColor(color));
     toolbar.append(button);
   });
@@ -409,6 +436,17 @@ function ensureSelectionToolbar() {
   removeButton.title = "Убрать выделение";
   removeButton.setAttribute("aria-label", "Убрать выделение");
   removeButton.hidden = true;
+  removeButton.addEventListener("pointerdown", protectToolbarPointer);
+  removeButton.addEventListener("mousedown", protectToolbarPointer);
+  removeButton.addEventListener("touchstart", protectToolbarPointer, { passive: false });
+  removeButton.addEventListener("pointerup", (event) => {
+    protectToolbarPointer(event);
+    removeActiveHighlight();
+  });
+  removeButton.addEventListener("touchend", (event) => {
+    protectToolbarPointer(event);
+    removeActiveHighlight();
+  }, { passive: false });
   removeButton.addEventListener("click", removeActiveHighlight);
   toolbar.append(removeButton);
 
@@ -427,6 +465,7 @@ function showToolbarForCurrentSelection() {
   }
 
   state.activeSelection = selectedRange;
+  savedSelectionRange = selectedRange.range.cloneRange();
   state.activeHighlight = null;
   setToolbarMode("selection");
   positionToolbar(selectedRange.rect);
@@ -443,12 +482,17 @@ function applyHighlightColor(color) {
       highlight.id === state.activeHighlight.id ? { ...highlight, color } : highlight
     );
     writeLessonHighlights(updated);
-  } else if (state.activeSelection) {
+  } else if (savedSelectionRange) {
+    const savedRange = getLessonTextRangeFromRange(savedSelectionRange.cloneRange());
+    if (!savedRange) {
+      hideSelectionToolbar();
+      return;
+    }
     const nextHighlight = {
       id: makeHighlightId(),
-      blockId: String(state.activeSelection.blockId),
-      startOffset: state.activeSelection.startOffset,
-      endOffset: state.activeSelection.endOffset,
+      blockId: String(savedRange.blockId),
+      startOffset: savedRange.startOffset,
+      endOffset: savedRange.endOffset,
       color,
     };
     const withoutOverlaps = highlights.filter(
@@ -473,6 +517,7 @@ function showToolbarForHighlight(highlightElement) {
   }
 
   state.activeSelection = null;
+  savedSelectionRange = null;
   state.activeHighlight = highlight;
   window.getSelection()?.removeAllRanges();
   setToolbarMode("highlight");

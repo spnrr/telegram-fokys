@@ -398,31 +398,31 @@ h1 {
 }
 
 .highlight {
-  border-radius: 4px;
-  padding: 0 2px;
+  border-radius: 5px;
+  padding: 0 3px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   cursor: pointer;
 }
 
 .highlight-yellow {
-  background: rgba(250, 204, 21, 0.35);
+  background: rgba(250, 204, 21, 0.55);
 }
 
 .highlight-green {
-  background: rgba(34, 197, 94, 0.30);
+  background: rgba(34, 197, 94, 0.48);
 }
 
 .highlight-blue {
-  background: rgba(59, 130, 246, 0.30);
+  background: rgba(59, 130, 246, 0.52);
 }
 
 .highlight-pink {
-  background: rgba(244, 114, 182, 0.30);
+  background: rgba(244, 114, 182, 0.52);
 }
 
 .highlight-purple {
-  background: rgba(168, 85, 247, 0.30);
+  background: rgba(168, 85, 247, 0.52);
 }
 
 .selection-toolbar {
