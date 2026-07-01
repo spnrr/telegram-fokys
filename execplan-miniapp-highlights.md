@@ -23,6 +23,8 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
 - [x] (2026-06-30 11:31Z) Reworked text block rendering to rebuild from raw text and safe `mark` nodes using character offsets.
 - [x] (2026-06-30 11:31Z) Stopped blocking `contextmenu` on lesson text so mobile text selection is not broken before the copy event can be blocked.
 - [x] (2026-06-30 11:38Z) Strengthened mobile text selection by explicitly allowing WebKit callout/user selection on lesson text, keeping toolbar selection disabled, not blocking text `dragstart`, and asking Telegram WebApp to disable vertical swipe interception when supported.
+- [x] (2026-07-01 08:05Z) Replaced native lesson text selection with a custom highlight mode button and tappable word tokens so iPhone and Android do not show the system copy menu.
+- [x] (2026-07-01 08:05Z) Added whitespace trimming before saving highlights, kept highlight persistence by character offsets, forced highlighted text to stay white, and constrained landing product images to stable cover ratios.
 
 ## Surprises & Discoveries
 
@@ -40,6 +42,9 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
 
 - Observation: After the offset rewrite, desktop highlighting worked but mobile long-press text selection still did not start.
   Evidence: The user reported on 2026-06-30 that everything worked except selecting text from a phone.
+
+- Observation: Trying to rely on native mobile selection creates an unwanted operating-system menu on iPhone and Android.
+  Evidence: The user requested that the lesson text no longer show the "Copy / Select all / Translate" style menu and that highlighting move to a separate button-driven mode.
 
 ## Decision Log
 
@@ -71,6 +76,14 @@ The visible proof is simple: open the Mini App, open a lesson, select a few word
   Rationale: Telegram mobile clients can intercept vertical gestures for closing or moving the Mini App. Disabling those swipes when supported gives native text selection more room to work.
   Date/Author: 2026-06-30 / Codex
 
+- Decision: Disable native selection inside `.lesson-text-block` and implement highlighting through a dedicated "Выделить текст" mode.
+  Rationale: Mobile system selection is inconsistent across Telegram WebView clients and shows a copy menu the product should avoid. Tapping generated word tokens stores exact character offsets without using `window.getSelection()` for highlighting.
+  Date/Author: 2026-07-01 / Codex
+
+- Decision: Render only non-whitespace tokens as tappable highlight targets.
+  Rationale: This prevents empty ranges, spaces, and newline-only fragments from creating visual dots or stripes between lines.
+  Date/Author: 2026-07-01 / Codex
+
 ## Outcomes & Retrospective
 
 Implemented the requested MVP in the Mini App frontend. Lesson text remains selectable, a floating toolbar provides five highlight colors and a remove action, highlights are persisted in localStorage per lesson, and copying/cutting/drag/keyboard copy attempts inside lessons are blocked with a short notice. Backend, bot, database, Railway startup, and admin logic were not changed.
@@ -78,6 +91,8 @@ Implemented the requested MVP in the Mini App frontend. Lesson text remains sele
 The 2026-06-30 revision changes the core highlight model so color selection no longer depends on the DOM Range after the toolbar click. The app now stores offsets at selection time and rebuilds each text block from raw text and safe `mark` elements.
 
 The later 2026-06-30 mobile revision keeps the offset model and changes only gesture/CSS behavior so phone users can start native text selection.
+
+The 2026-07-01 revision removes native lesson selection from the highlight flow entirely. A learner now presses "Выделить текст", taps the first word and the last word, then chooses a color. The saved data remains offset-based in `localStorage`, but the offsets come from generated word token metadata rather than the browser Selection API. Landing page images were also constrained to fixed cover ratios so product cards do not stretch from tall source photos.
 
 Automated validation covered syntax and local rendering. A fully automated real text-selection test was limited by the browser automation sandbox, so final phone/desktop confirmation should be done manually in Telegram and a normal browser.
 
@@ -87,15 +102,15 @@ The Mini App is a static frontend served from `webapp/` by the Flask backend in 
 
 Lessons are rendered by `renderLesson(moduleId, lessonId)` in `webapp/app.js`. That function fetches the lesson metadata from `/api/lessons/<lesson_id>` and lesson content blocks from `/api/lessons/<lesson_id>/blocks`. Text blocks are rendered by `appendTextBlock(article, block)`, image blocks by `appendImageBlock(article, block)`, and video blocks by `appendVideoBlock(article, block)`.
 
-Selection API means the browser feature exposed through `window.getSelection()`. It lets the code read the current selected text and the selected range. A range is the start and end of a selection inside DOM nodes. For this MVP, the code will convert that DOM selection into plain-text offsets inside one text block, where offset means the character number from the start of the block.
+Selection API means the browser feature exposed through `window.getSelection()`. It lets the code read the current selected text and the selected range. Earlier revisions used it, but the current mobile-safe implementation no longer uses it for highlighting. Instead, each lesson text block is split into visible word tokens. A token is one non-space piece of text, usually a word, wrapped by JavaScript in a `span` with `data-start` and `data-end` offsets. Offset means the character number from the start of the plain text block.
 
 ## Plan of Work
 
 First, add a small frontend state area for highlight colors, the current selected range, and the floating toolbar. The toolbar will be created by JavaScript and appended to `document.body`, so `index.html` does not need new markup.
 
-Second, update text block rendering. Each text block will receive class `lesson-text-block`, `data-block-id`, and `data-lesson-id`. Text blocks will be rendered from the block's plain text and the saved highlights for the current lesson. Highlight spans will only be created by app code and will use safe text nodes, not saved HTML.
+Second, update text block rendering. Each text block receives class `lesson-text-block`, `data-block-id`, and `data-lesson-id`. Text blocks are rendered from the block's plain text and the saved highlights for the current lesson. Visible words become `.hl-token` elements with `data-start` and `data-end`, while spaces and newlines remain plain text nodes. Highlight spans are only created by app code and use safe text content, not saved HTML.
 
-Third, add selection handling. On `selectionchange`, `mouseup`, and `touchend`, the code will check whether the selection is non-empty and fully inside a `.lesson-text-block`. If it is valid, the toolbar appears near the selection rectangle. If it is invalid, the toolbar hides.
+Third, add custom highlight handling. The lesson screen shows a "Выделить текст" button. When the mode is active, the first tap on a token stores the start token, the second tap stores the end token, the app trims whitespace from the resulting raw-text range, and then the color toolbar appears. Browser native selection is disabled in `.lesson-text-block`, so mobile clients should not show the system copy menu.
 
 Fourth, add highlight application and removal. Choosing a color stores `{ blockId, startOffset, endOffset, color }` in `localStorage` and rerenders the lesson text from safe text nodes. Clicking an existing highlight opens the toolbar in remove mode, and the remove button deletes that highlight.
 
@@ -149,6 +164,14 @@ Validation evidence from 2026-06-29:
     textBlockUserSelect: text
     browser console errors: 0
 
+Validation evidence from 2026-07-01:
+
+    C:\Users\Sasha\Documents\telegram fokus bot> python -m py_compile bot.py database.py server.py start.py
+    # no output means success
+
+    C:\Users\Sasha\Documents\telegram fokus bot> C:\Users\Sasha\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --check webapp\app.js
+    # no output means success
+
 ## Interfaces and Dependencies
 
 No new external dependency is required.
@@ -160,3 +183,5 @@ In `webapp/style.css`, classes must include `.highlight`, `.highlight-yellow`, `
 Revision note: Initial ExecPlan created to guide the frontend-only copy protection and lesson highlighting work requested by the user.
 
 Revision note: Implementation completed. Added frontend-only selection toolbar, highlight persistence, copy blocking, legacy block keys, CSS styling, and validation evidence because the requested behavior is now implemented without backend changes.
+
+Revision note: Reworked highlighting for mobile. Native text selection is now disabled inside lesson text and custom token taps drive highlighting, because mobile Telegram WebView clients show system copy menus when ordinary selection is used.

@@ -276,9 +276,6 @@ h1 {
   border-radius: 22px;
   background: var(--tg-theme-bg-color, #ffffff);
   box-shadow: 0 12px 30px rgba(29, 42, 75, 0.06);
-  -webkit-touch-callout: default;
-  -webkit-user-select: text;
-  user-select: text;
 }
 
 .lesson p {
@@ -297,15 +294,62 @@ h1 {
 
 .lesson-text-block,
 .lesson-text-block * {
-  -webkit-touch-callout: default !important;
-  -webkit-user-select: text !important;
-  user-select: text !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .lesson-text-content {
-  cursor: text;
-  touch-action: auto;
+  cursor: default;
+  touch-action: pan-y;
   white-space: pre-wrap;
+}
+
+.lesson-tools {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.highlight-mode-button {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background: var(--text);
+  color: var(--bg);
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.highlight-mode-button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
+.highlight-mode-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.hl-token {
+  border-radius: 5px;
+}
+
+.content.is-highlight-mode .hl-token {
+  cursor: pointer;
+}
+
+.hl-token.is-highlight-start {
+  outline: 1px solid rgba(255, 255, 255, 0.65);
+  outline-offset: 2px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .lesson-block:last-child {
@@ -412,6 +456,14 @@ h1 {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
   cursor: pointer;
+}
+
+.highlight,
+mark.highlight,
+.lesson-text-block mark,
+.hl-token.highlight {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
 }
 
 .highlight-yellow {
@@ -1044,7 +1096,10 @@ body.mini-app .landing-hero {
 
 body.mini-app .landing-hero-image {
   position: relative;
-  min-height: clamp(220px, 42vw, 360px);
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 520px;
+  min-height: 0;
   overflow: hidden;
   background: #07080a;
 }
@@ -1055,6 +1110,7 @@ body.mini-app .landing-product-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   filter: grayscale(1) contrast(1.08) brightness(0.74);
 }
 
@@ -1159,7 +1215,11 @@ body.mini-app .landing-product-card {
 }
 
 body.mini-app .landing-product-image {
-  min-height: 180px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 260px;
+  min-height: 0;
+  overflow: hidden;
   background: #08090b;
 }
 
@@ -1252,7 +1312,9 @@ body.mini-app .landing-footer span {
   }
 
   body.mini-app .landing-product-image {
-    min-height: 100%;
+    min-height: 0;
+    height: 100%;
+    max-height: 260px;
   }
 }
 
