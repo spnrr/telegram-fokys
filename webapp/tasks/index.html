@@ -7,17 +7,17 @@
     <link rel="stylesheet" href="/tasks/style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
-  <body>
-    <main class="app-shell">
+  <body class="task-app">
+    <main class="app-shell tasks-root tasks-container">
       <header class="topbar">
         <button class="back-button" id="backButton" type="button" hidden aria-label="Назад">‹</button>
         <div>
-          <p class="eyebrow" id="eyebrow">протокол дня</p>
-          <h1 id="pageTitle">Протокол Дня</h1>
-          <p class="subtitle" id="pageSubtitle">Выбери главное действие и не слей день.</p>
+          <p class="eyebrow task-label" id="eyebrow">ПРОТОКОЛ ДНЯ</p>
+          <h1 class="task-title" id="pageTitle">Протокол Дня</h1>
+          <p class="subtitle task-subtitle" id="pageSubtitle">Выбери главное действие и не слей день.</p>
         </div>
       </header>
-      <section class="content" id="content" aria-live="polite"></section>
+      <section class="content task-screen" id="content" aria-live="polite"></section>
     </main>
     <script src="/tasks/app.js"></script>
   </body>

@@ -47,13 +47,40 @@ const eveningDraft = {
 };
 
 function configureTelegramWebApp() {
+  if (!tg) {
+    return;
+  }
+
   try {
-    tg?.ready();
-    tg?.expand();
-    tg?.setHeaderColor?.("#07080b");
-    tg?.setBackgroundColor?.("#07080b");
+    tg.ready();
   } catch (error) {
-    console.debug("Telegram WebApp setup skipped:", error);
+    console.debug("Telegram WebApp ready skipped:", error);
+  }
+  try {
+    tg.expand();
+  } catch (error) {
+    console.debug("Telegram WebApp expand skipped:", error);
+  }
+  try {
+    tg.setHeaderColor("#07080b");
+  } catch (error) {
+    console.debug("Telegram WebApp header color skipped:", error);
+  }
+  try {
+    tg.setBackgroundColor("#07080b");
+  } catch (error) {
+    console.debug("Telegram WebApp background color skipped:", error);
+  }
+
+  if (typeof tg.requestFullscreen === "function") {
+    try {
+      const fullscreenResult = tg.requestFullscreen();
+      if (fullscreenResult && typeof fullscreenResult.catch === "function") {
+        fullscreenResult.catch(() => {});
+      }
+    } catch (error) {
+      console.debug("Telegram WebApp fullscreen skipped:", error);
+    }
   }
 }
 
@@ -231,11 +258,12 @@ function showStatus(container, message, isError = false) {
 
 function renderHome() {
   clearTimer();
-  setHeader("протокол дня", "Протокол Дня", "Выбери главное действие и не слей день.");
+  setHeader("ПРОТОКОЛ ДНЯ", "Протокол Дня", "Выбери главное действие и не слей день.");
   setBackVisible(false);
+  content.className = "content task-screen home-screen";
   content.replaceChildren();
 
-  const actionCard = createElement("section", "card");
+  const actionCard = createElement("section", "card task-card");
   const title = createElement("h2", "section-title", "Сегодня");
   const description = createElement("p", "muted");
   let buttonText = "Начать день";
@@ -246,18 +274,18 @@ function renderHome() {
     buttonText = "Итог дня";
     target = "result";
   } else if (state.task) {
-    description.textContent = "Утренний протокол уже создан. Продолжай день.";
+    description.textContent = "Сегодняшний протокол активен.";
     buttonText = "Продолжить день";
     target = "active";
   } else {
-    description.textContent = "Сначала зафиксируй главное действие, запрет дня и фокус-сессию.";
+    description.textContent = "Собери день: задача, запрет, фокус.";
   }
 
   actionCard.append(
     title,
     description,
     createElement("br"),
-    createButton(buttonText, "primary-button", () => {
+    createButton(buttonText, "primary-button task-primary-button", () => {
       if (target === "active") {
         resetTimerFromTask();
       }
@@ -265,7 +293,7 @@ function renderHome() {
     })
   );
 
-  const statsCard = createElement("section", "card");
+  const statsCard = createElement("section", "card task-card stats-card");
   statsCard.append(createElement("h2", "section-title", "Статистика"), createStatsGrid(state.stats));
   content.append(actionCard, statsCard);
 }
@@ -274,6 +302,7 @@ function renderMorning() {
   clearTimer();
   setHeader("утро", "Утренний протокол", "Выбери главное действие, запрет и первую фокус-сессию.");
   setBackVisible(true);
+  content.className = "content task-screen";
   content.replaceChildren();
 
   const form = createElement("section", "field-card");
@@ -389,6 +418,7 @@ function renderTimer(container) {
 function renderActive() {
   setHeader("день", "Активный день", "Держи перед глазами главное и запускай фокус.");
   setBackVisible(true);
+  content.className = "content task-screen";
   content.replaceChildren();
 
   const card = createElement("section", "card");
@@ -428,6 +458,7 @@ function renderEvening() {
   clearTimer();
   setHeader("вечер", "Вечерний разбор", "Честно отметь результат и одну правку на завтра.");
   setBackVisible(true);
+  content.className = "content task-screen";
   content.replaceChildren();
 
   const form = createElement("section", "field-card");
@@ -497,6 +528,7 @@ function renderResult() {
   clearTimer();
   setHeader("итог", "Итог дня", "Статистика и последние протоколы.");
   setBackVisible(true);
+  content.className = "content task-screen";
   content.replaceChildren();
 
   const success = Number(state.task?.task_done || 0) === 1;
@@ -537,13 +569,15 @@ function renderResult() {
 }
 
 function renderLoading() {
-  setHeader("протокол дня", "Протокол Дня", "Загрузка данных.");
+  setHeader("ПРОТОКОЛ ДНЯ", "Протокол Дня", "Загрузка данных.");
+  content.className = "content task-screen";
   content.replaceChildren(createElement("section", "card", "Загрузка…"));
 }
 
 function renderError(message) {
   setHeader("ошибка", "Не удалось загрузить", "Проверь соединение и попробуй снова.");
   setBackVisible(false);
+  content.className = "content task-screen";
   content.replaceChildren(
     createElement("section", "card"),
   );
