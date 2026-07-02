@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Протокол Дня</title>
+    <link rel="stylesheet" href="/tasks/style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <button class="back-button" id="backButton" type="button" hidden aria-label="Назад">‹</button>
+        <div>
+          <p class="eyebrow" id="eyebrow">протокол дня</p>
+          <h1 id="pageTitle">Протокол Дня</h1>
+          <p class="subtitle" id="pageSubtitle">Выбери главное действие и не слей день.</p>
+        </div>
+      </header>
+      <section class="content" id="content" aria-live="polite"></section>
+    </main>
+    <script src="/tasks/app.js"></script>
+  </body>
+</html>

@@ -1,5 +1,7 @@
 import os
 import sqlite3
+from collections import Counter
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -73,6 +75,26 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS course_settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS daily_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                date TEXT NOT NULL,
+                main_task TEXT,
+                secondary_task TEXT,
+                daily_ban TEXT,
+                focus_minutes INTEGER,
+                promise TEXT,
+                task_done INTEGER DEFAULT 0,
+                ban_broken INTEGER DEFAULT 0,
+                wasted_time TEXT,
+                blocker TEXT,
+                tomorrow_fix TEXT,
+                completed INTEGER DEFAULT 0,
+                created_at TEXT,
+                completed_at TEXT,
+                UNIQUE(user_id, date)
             );
             """
         )
@@ -427,3 +449,181 @@ def reorder_lesson_blocks(lesson_id: int, block_ids: list[int]) -> list[dict[str
                 (index * 10, block_id, lesson_id),
             )
     return list_lesson_blocks(lesson_id, include_legacy_fallback=False)
+
+
+def today_iso() -> str:
+    return date.today().isoformat()
+
+
+def current_timestamp() -> str:
+    return datetime.now().replace(microsecond=0).isoformat()
+
+
+def get_daily_task(user_id: str, task_date: str | None = None) -> dict[str, Any] | None:
+    task_date = task_date or today_iso()
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT *
+            FROM daily_tasks
+            WHERE user_id = ? AND date = ?
+            """,
+            (user_id, task_date),
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def start_daily_task(
+    user_id: str,
+    main_task: str,
+    secondary_task: str,
+    daily_ban: str,
+    focus_minutes: int,
+    promise: str,
+    task_date: str | None = None,
+) -> dict[str, Any]:
+    task_date = task_date or today_iso()
+    created_at = current_timestamp()
+    with get_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO daily_tasks (
+                user_id,
+                date,
+                main_task,
+                secondary_task,
+                daily_ban,
+                focus_minutes,
+                promise,
+                task_done,
+                ban_broken,
+                wasted_time,
+                blocker,
+                tomorrow_fix,
+                completed,
+                created_at,
+                completed_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, '', '', '', 0, ?, NULL)
+            ON CONFLICT(user_id, date) DO UPDATE SET
+                main_task = excluded.main_task,
+                secondary_task = excluded.secondary_task,
+                daily_ban = excluded.daily_ban,
+                focus_minutes = excluded.focus_minutes,
+                promise = excluded.promise,
+                task_done = 0,
+                ban_broken = 0,
+                wasted_time = '',
+                blocker = '',
+                tomorrow_fix = '',
+                completed = 0,
+                completed_at = NULL
+            """,
+            (
+                user_id,
+                task_date,
+                main_task,
+                secondary_task,
+                daily_ban,
+                focus_minutes,
+                promise,
+                created_at,
+            ),
+        )
+    task = get_daily_task(user_id, task_date)
+    if task is None:
+        raise RuntimeError("Created daily task was not found")
+    return task
+
+
+def complete_daily_task(
+    user_id: str,
+    task_done: bool,
+    ban_broken: bool,
+    wasted_time: str,
+    blocker: str,
+    tomorrow_fix: str,
+    task_date: str | None = None,
+) -> dict[str, Any] | None:
+    task_date = task_date or today_iso()
+    completed_at = current_timestamp()
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE daily_tasks
+            SET
+                task_done = ?,
+                ban_broken = ?,
+                wasted_time = ?,
+                blocker = ?,
+                tomorrow_fix = ?,
+                completed = 1,
+                completed_at = ?
+            WHERE user_id = ? AND date = ?
+            """,
+            (
+                1 if task_done else 0,
+                1 if ban_broken else 0,
+                wasted_time,
+                blocker,
+                tomorrow_fix,
+                completed_at,
+                user_id,
+                task_date,
+            ),
+        )
+        if cursor.rowcount == 0:
+            return None
+    return get_daily_task(user_id, task_date)
+
+
+def _calculate_day_streak(task_dates: set[str]) -> int:
+    streak = 0
+    cursor = date.today()
+    while cursor.isoformat() in task_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+    return streak
+
+
+def get_daily_task_stats(user_id: str) -> dict[str, Any]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM daily_tasks
+            WHERE user_id = ?
+            ORDER BY date DESC
+            """,
+            (user_id,),
+        ).fetchall()
+
+    tasks = [dict(row) for row in rows]
+    task_dates = {str(task["date"]) for task in tasks}
+    blocker_counts = Counter(
+        str(task.get("blocker") or "").strip()
+        for task in tasks
+        if str(task.get("blocker") or "").strip()
+        and str(task.get("blocker") or "").strip().lower() != "ничего"
+    )
+    most_common_blocker = blocker_counts.most_common(1)[0][0] if blocker_counts else "Нет данных"
+
+    return {
+        "total_days": len(tasks),
+        "tasks_done": sum(1 for task in tasks if int(task.get("task_done") or 0) == 1),
+        "current_streak": _calculate_day_streak(task_dates),
+        "ban_broken_count": sum(1 for task in tasks if int(task.get("ban_broken") or 0) == 1),
+        "most_common_blocker": most_common_blocker,
+        "recent_days": [
+            {
+                "date": task.get("date"),
+                "main_task": task.get("main_task") or "",
+                "task_done": int(task.get("task_done") or 0),
+                "ban_broken": int(task.get("ban_broken") or 0),
+                "wasted_time": task.get("wasted_time") or "",
+                "blocker": task.get("blocker") or "",
+                "completed": int(task.get("completed") or 0),
+            }
+            for task in tasks[:10]
+        ],
+    }

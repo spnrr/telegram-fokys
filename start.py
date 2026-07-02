@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 import threading
 import time
 
@@ -36,6 +37,15 @@ def run_bot() -> None:
     bot.main()
 
 
+def run_task_bot() -> None:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
+    import task_bot
+
+    logger.info("Starting task Telegram bot polling")
+    task_bot.main()
+
+
 def main() -> None:
     load_dotenv()
 
@@ -46,6 +56,21 @@ def main() -> None:
     )
     backend_thread.start()
     time.sleep(1)
+
+    course_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    task_token = os.getenv("TASK_BOT_TOKEN", "").strip()
+    if not task_token:
+        logger.warning("TASK_BOT_TOKEN is not configured; task bot disabled")
+    elif task_token == course_token:
+        logger.warning("TASK_BOT_TOKEN matches TELEGRAM_BOT_TOKEN; task bot disabled")
+    else:
+        task_bot_thread = threading.Thread(
+            target=run_task_bot,
+            name="task-telegram-bot",
+            daemon=True,
+        )
+        task_bot_thread.start()
+        time.sleep(1)
 
     run_bot()
 

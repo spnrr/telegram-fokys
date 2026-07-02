@@ -10,7 +10,9 @@ import database
 
 BASE_DIR = Path(__file__).resolve().parent
 WEBAPP_DIR = BASE_DIR / "webapp"
+TASKS_WEBAPP_DIR = WEBAPP_DIR / "tasks"
 VALID_BLOCK_TYPES = {"text", "image", "video"}
+TASK_FOCUS_MINUTES = {25, 45, 90}
 
 
 def create_app() -> Flask:
@@ -41,6 +43,25 @@ def create_app() -> Flask:
     def clean_content(value: Any, max_length: int = 20_000) -> str:
         text = str(value or "").strip()
         return text[:max_length]
+
+    def clean_user_id(value: Any) -> str:
+        return " ".join(str(value or "").split())[:120]
+
+    def clean_bool(value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            return value == 1
+        return str(value or "").strip().lower() in {"1", "true", "yes", "да"}
+
+    def clean_focus_minutes(value: Any) -> int | None:
+        try:
+            minutes = int(value)
+        except (TypeError, ValueError):
+            return None
+        if minutes not in TASK_FOCUS_MINUTES:
+            return None
+        return minutes
 
     def validate_block_payload(payload: dict[str, Any]) -> tuple[str, str, tuple[Response, int] | None]:
         block_type = clean_text(payload.get("type"), 20)
@@ -88,6 +109,18 @@ def create_app() -> Flask:
     def admin() -> Response:
         return send_from_directory(WEBAPP_DIR, "admin.html")
 
+    @app.get("/tasks")
+    def tasks_index() -> Response:
+        return send_from_directory(TASKS_WEBAPP_DIR, "index.html")
+
+    @app.get("/tasks/app.js")
+    def tasks_app_js() -> Response:
+        return send_from_directory(TASKS_WEBAPP_DIR, "app.js")
+
+    @app.get("/tasks/style.css")
+    def tasks_style_css() -> Response:
+        return send_from_directory(TASKS_WEBAPP_DIR, "style.css")
+
     @app.get("/<path:filename>")
     def static_files(filename: str) -> Response:
         return send_from_directory(WEBAPP_DIR, filename)
@@ -99,6 +132,71 @@ def create_app() -> Flask:
     @app.get("/api/course-settings")
     def api_course_settings() -> Response:
         return jsonify(database.get_course_settings())
+
+    @app.get("/api/tasks/today")
+    def api_tasks_today() -> tuple[Response, int] | Response:
+        user_id = clean_user_id(request.args.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        return jsonify({
+            "task": database.get_daily_task(user_id),
+            "stats": database.get_daily_task_stats(user_id),
+        })
+
+    @app.post("/api/tasks/start")
+    def api_tasks_start() -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        main_task = clean_text(payload.get("main_task"), 240)
+        secondary_task = clean_text(payload.get("secondary_task"), 240)
+        daily_ban = clean_text(payload.get("daily_ban"), 120)
+        promise = clean_text(payload.get("promise"), 300)
+        focus_minutes = clean_focus_minutes(payload.get("focus_minutes"))
+
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not main_task:
+            return jsonify({"error": "main_task is required"}), 400
+        if not daily_ban:
+            return jsonify({"error": "daily_ban is required"}), 400
+        if focus_minutes is None:
+            return jsonify({"error": "focus_minutes must be 25, 45, or 90"}), 400
+
+        task = database.start_daily_task(
+            user_id=user_id,
+            main_task=main_task,
+            secondary_task=secondary_task,
+            daily_ban=daily_ban,
+            focus_minutes=focus_minutes,
+            promise=promise,
+        )
+        return jsonify({"task": task, "stats": database.get_daily_task_stats(user_id)}), 201
+
+    @app.post("/api/tasks/complete")
+    def api_tasks_complete() -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+
+        task = database.complete_daily_task(
+            user_id=user_id,
+            task_done=clean_bool(payload.get("task_done")),
+            ban_broken=clean_bool(payload.get("ban_broken")),
+            wasted_time=clean_text(payload.get("wasted_time"), 80),
+            blocker=clean_text(payload.get("blocker"), 120),
+            tomorrow_fix=clean_content(payload.get("tomorrow_fix"), 1000),
+        )
+        if task is None:
+            return jsonify({"error": "Daily protocol was not started"}), 404
+        return jsonify({"task": task, "stats": database.get_daily_task_stats(user_id)})
+
+    @app.get("/api/tasks/stats")
+    def api_tasks_stats() -> tuple[Response, int] | Response:
+        user_id = clean_user_id(request.args.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        return jsonify(database.get_daily_task_stats(user_id))
 
     @app.get("/api/modules/<int:module_id>/lessons")
     def api_module_lessons(module_id: int) -> tuple[Response, int] | Response:
