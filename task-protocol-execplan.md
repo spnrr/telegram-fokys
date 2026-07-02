@@ -19,6 +19,7 @@ After this change the project will run two separate Telegram bots from the same 
 - [x] (2026-07-01 12:34+03:00) Update `start.py` so Flask, the course bot, and the task bot can run together when configured.
 - [x] (2026-07-01 12:35+03:00) Update `.env.example` with `TASK_BOT_TOKEN` and `TASK_WEBAPP_URL`.
 - [x] (2026-07-01 12:40+03:00) Run Python syntax checks and local API smoke checks.
+- [x] (2026-07-02 00:00+03:00) Add the "Дела" tab with independent todo tables, API endpoints, and Mini App UI without changing the daily protocol flow.
 
 ## Surprises & Discoveries
 
@@ -41,6 +42,10 @@ After this change the project will run two separate Telegram bots from the same 
 - Decision: Run the new task bot in a daemon thread and give that thread its own asyncio event loop.
   Rationale: `python-telegram-bot` polling uses asyncio; a non-main thread needs an explicit event loop to start reliably while the existing course bot remains the main blocking process.
   Date/Author: 2026-07-01 / Codex.
+
+- Decision: Store todos in `todo_tasks` and `todo_blocks`, not `daily_tasks`.
+  Rationale: `daily_tasks` already represents the morning/evening Protocol Day record; todos need multiple rows per date and optional grouping blocks.
+  Date/Author: 2026-07-02 / Codex.
 
 ## Outcomes & Retrospective
 
@@ -98,6 +103,16 @@ The existing course routes were also smoke-checked with Flask's test client:
     /admin 200
     /api/modules 200
     /api/course-settings 200
+
+The todo API was smoke-checked with Flask's test client:
+
+    POST /api/todo-blocks 201
+    POST /api/todos 201
+    GET /api/todos 200 1 1
+    POST /api/todos/id/toggle 200 1
+    PATCH /api/todos/id 200 2026-07-03
+    DELETE /api/todos/id 200
+    DELETE /api/todo-blocks/id 200
 
 ## Validation and Acceptance
 

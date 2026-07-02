@@ -6,6 +6,7 @@ const pageTitle = document.querySelector("#pageTitle");
 const pageSubtitle = document.querySelector("#pageSubtitle");
 const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
+const tabNav = document.querySelector("#tabNav");
 
 const BAN_OPTIONS = [
   "Скроллинг утром",
@@ -23,11 +24,17 @@ const state = {
   userId: "",
   task: null,
   stats: null,
+  activeTab: "protocol",
   screen: "home",
   history: [],
   timerSeconds: 25 * 60,
   timerInterval: null,
   timerRunning: false,
+  selectedTodoDate: "",
+  todos: [],
+  todoBlocks: [],
+  expandedBlockIds: new Set(),
+  editingTodoId: null,
 };
 
 const morningDraft = {
@@ -44,6 +51,17 @@ const eveningDraft = {
   wasted_time: WASTED_TIME_OPTIONS[0],
   blocker: BLOCKER_OPTIONS[6],
   tomorrow_fix: "",
+};
+
+const todoDraft = {
+  title: "",
+  description: "",
+  due_time: "",
+  block_id: "",
+};
+
+const blockDraft = {
+  title: "",
 };
 
 function configureTelegramWebApp() {
@@ -114,6 +132,73 @@ async function fetchJson(url, options = {}) {
   return data;
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDaysIso(days) {
+  const current = new Date();
+  current.setDate(current.getDate() + days);
+  return current.toISOString().slice(0, 10);
+}
+
+function formatDateText(isoDate) {
+  try {
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "numeric",
+      month: "long",
+      weekday: "short",
+    }).format(new Date(`${isoDate}T00:00:00`));
+  } catch {
+    return isoDate;
+  }
+}
+
+function getTodoProgress() {
+  const total = state.todos.length;
+  const completed = state.todos.filter((todo) => Number(todo.completed) === 1).length;
+  return {
+    total,
+    completed,
+    percent: total === 0 ? 0 : Math.round((completed / total) * 100),
+  };
+}
+
+function renderTabs() {
+  const tabs = [
+    ["protocol", "Протокол"],
+    ["todos", "Дела"],
+    ["stats", "Статистика"],
+  ];
+  tabNav.replaceChildren();
+  tabs.forEach(([key, label]) => {
+    const button = createButton(label, "tab-button", () => {
+      switchTab(key);
+    });
+    if (state.activeTab === key) {
+      button.classList.add("is-active");
+    }
+    tabNav.append(button);
+  });
+}
+
+function switchTab(tab) {
+  state.activeTab = tab;
+  state.history = [];
+  clearTimer();
+  if (tab === "protocol") {
+    state.screen = "home";
+    render();
+    return;
+  }
+  if (tab === "todos") {
+    loadTodos().catch((error) => renderError(error.message));
+    return;
+  }
+  state.screen = "stats";
+  render();
+}
+
 function setHeader(label, title, subtitle) {
   eyebrow.textContent = label;
   pageTitle.textContent = title;
@@ -137,6 +222,7 @@ function setBackVisible(isVisible) {
 }
 
 function navigate(screen, push = true) {
+  state.activeTab = "protocol";
   if (push && state.screen !== screen) {
     state.history.push(state.screen);
   }
@@ -231,6 +317,31 @@ function createTextarea(value, placeholder, onInput) {
   return textarea;
 }
 
+function createTimeInput(value, onInput) {
+  const input = document.createElement("input");
+  input.type = "time";
+  input.value = value || "";
+  input.addEventListener("input", () => onInput(input.value));
+  return input;
+}
+
+function createBlockSelect(value, onChange) {
+  const select = document.createElement("select");
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "Без блока";
+  select.append(empty);
+  state.todoBlocks.forEach((block) => {
+    const option = document.createElement("option");
+    option.value = String(block.id);
+    option.textContent = block.title;
+    select.append(option);
+  });
+  select.value = value ? String(value) : "";
+  select.addEventListener("change", () => onChange(select.value));
+  return select;
+}
+
 function createOptions(options, selected, onSelect, format = (value) => value) {
   const wrapper = createElement("div", "options");
   options.forEach((option) => {
@@ -254,6 +365,383 @@ function showStatus(container, message, isError = false) {
   }
   status.textContent = message;
   status.classList.toggle("error", isError);
+}
+
+async function loadTodos() {
+  if (!state.selectedTodoDate) {
+    state.selectedTodoDate = todayIso();
+  }
+  const data = await fetchJson(
+    `/api/todos?user_id=${encodeURIComponent(state.userId)}&date=${encodeURIComponent(state.selectedTodoDate)}`
+  );
+  state.todos = data.todos || [];
+  state.todoBlocks = data.blocks || [];
+  state.activeTab = "todos";
+  state.screen = "todos";
+  render();
+}
+
+async function reloadTodos() {
+  const data = await fetchJson(
+    `/api/todos?user_id=${encodeURIComponent(state.userId)}&date=${encodeURIComponent(state.selectedTodoDate)}`
+  );
+  state.todos = data.todos || [];
+  state.todoBlocks = data.blocks || [];
+  render();
+}
+
+function resetTodoDraft() {
+  state.editingTodoId = null;
+  todoDraft.title = "";
+  todoDraft.description = "";
+  todoDraft.due_time = "";
+  todoDraft.block_id = "";
+}
+
+function startEditTodo(todo) {
+  state.editingTodoId = todo.id;
+  todoDraft.title = todo.title || "";
+  todoDraft.description = todo.description || "";
+  todoDraft.due_time = todo.due_time || "";
+  todoDraft.block_id = todo.block_id ? String(todo.block_id) : "";
+  render();
+}
+
+async function saveTodo(container) {
+  const title = todoDraft.title.trim();
+  if (!title) {
+    showStatus(container, "Заполни название дела.", true);
+    return;
+  }
+
+  const payload = {
+    user_id: state.userId,
+    title,
+    description: todoDraft.description,
+    due_date: state.selectedTodoDate,
+    due_time: todoDraft.due_time,
+    block_id: todoDraft.block_id || null,
+  };
+
+  try {
+    if (state.editingTodoId) {
+      await fetchJson(`/api/todos/${state.editingTodoId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+    } else {
+      await fetchJson("/api/todos", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    }
+    resetTodoDraft();
+    await reloadTodos();
+  } catch (error) {
+    showStatus(container, error.message, true);
+  }
+}
+
+async function toggleTodo(todo) {
+  await fetchJson(`/api/todos/${todo.id}/toggle`, {
+    method: "POST",
+    body: JSON.stringify({ user_id: state.userId }),
+  });
+  await reloadTodos();
+}
+
+async function deleteTodo(todo) {
+  if (!window.confirm("Удалить дело?")) {
+    return;
+  }
+  await fetchJson(`/api/todos/${todo.id}?user_id=${encodeURIComponent(state.userId)}`, {
+    method: "DELETE",
+  });
+  await reloadTodos();
+}
+
+async function createBlock(container) {
+  const title = blockDraft.title.trim();
+  if (!title) {
+    showStatus(container, "Название блока не может быть пустым.", true);
+    return;
+  }
+  try {
+    const data = await fetchJson("/api/todo-blocks", {
+      method: "POST",
+      body: JSON.stringify({ user_id: state.userId, title }),
+    });
+    blockDraft.title = "";
+    state.expandedBlockIds.add(Number(data.block.id));
+    await reloadTodos();
+  } catch (error) {
+    showStatus(container, error.message, true);
+  }
+}
+
+async function renameBlock(block) {
+  const title = window.prompt("Новое название блока", block.title);
+  if (!title || !title.trim()) {
+    return;
+  }
+  await fetchJson(`/api/todo-blocks/${block.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ user_id: state.userId, title }),
+  });
+  await reloadTodos();
+}
+
+async function deleteBlock(block) {
+  if (!window.confirm("Удалить блок? Дела останутся без блока.")) {
+    return;
+  }
+  await fetchJson(`/api/todo-blocks/${block.id}?user_id=${encodeURIComponent(state.userId)}`, {
+    method: "DELETE",
+  });
+  state.expandedBlockIds.delete(Number(block.id));
+  await reloadTodos();
+}
+
+function renderDatePicker() {
+  const wrapper = createElement("section", "date-picker");
+  const today = todayIso();
+  const tomorrow = addDaysIso(1);
+  const todayButton = createButton("Сегодня", "date-button", () => {
+    state.selectedTodoDate = today;
+    loadTodos().catch((error) => renderError(error.message));
+  });
+  const tomorrowButton = createButton("Завтра", "date-button", () => {
+    state.selectedTodoDate = tomorrow;
+    loadTodos().catch((error) => renderError(error.message));
+  });
+  const input = document.createElement("input");
+  input.className = "date-input";
+  input.type = "date";
+  input.value = state.selectedTodoDate;
+  input.addEventListener("change", () => {
+    if (input.value) {
+      state.selectedTodoDate = input.value;
+      loadTodos().catch((error) => renderError(error.message));
+    }
+  });
+
+  if (state.selectedTodoDate === today) {
+    todayButton.classList.add("is-active");
+  }
+  if (state.selectedTodoDate === tomorrow) {
+    tomorrowButton.classList.add("is-active");
+  }
+
+  const selected = createElement("p", "selected-date", formatDateText(state.selectedTodoDate));
+  wrapper.append(todayButton, tomorrowButton, input, selected);
+  return wrapper;
+}
+
+function renderTodoProgress() {
+  const progress = getTodoProgress();
+  const card = createElement("section", "todo-progress");
+  const top = createElement("div", "todo-progress-top");
+  top.append(
+    createElement("strong", "", `${progress.completed}/${progress.total}`),
+    createElement("span", "", "прогресс дня")
+  );
+  const track = createElement("div", "todo-progress-track");
+  const fill = createElement("div", "todo-progress-fill");
+  fill.style.width = `${progress.percent}%`;
+  track.append(fill);
+  card.append(top, track);
+  return card;
+}
+
+function renderTodoForm() {
+  const form = createElement("section", "todo-form task-card");
+  form.append(
+    createElement("h2", "section-title", state.editingTodoId ? "Редактировать дело" : "Новое дело"),
+    createField(
+      "Название дела",
+      createTextInput(todoDraft.title, "Название дела", (value) => {
+        todoDraft.title = value;
+      })
+    ),
+    createField(
+      "Описание",
+      createTextarea(todoDraft.description, "Описание, детали или ссылка (необязательно)", (value) => {
+        todoDraft.description = value;
+      })
+    ),
+    createField(
+      "Время",
+      createTimeInput(todoDraft.due_time, (value) => {
+        todoDraft.due_time = value;
+      })
+    ),
+    createField(
+      "Блок дел",
+      createBlockSelect(todoDraft.block_id, (value) => {
+        todoDraft.block_id = value;
+      })
+    )
+  );
+
+  const row = createElement("div", "todo-form-actions");
+  row.append(createButton(state.editingTodoId ? "Сохранить" : "+", "primary-button todo-add-button", () => {
+    saveTodo(form);
+  }));
+  if (state.editingTodoId) {
+    row.append(createButton("Отмена", "secondary-button", () => {
+      resetTodoDraft();
+      render();
+    }));
+  }
+  form.append(row);
+  return form;
+}
+
+function renderTodoItem(todo) {
+  const item = createElement("article", "todo-item");
+  if (Number(todo.completed) === 1) {
+    item.classList.add("is-completed");
+  }
+
+  const toggle = createButton("", "todo-check", () => {
+    toggleTodo(todo).catch((error) => renderError(error.message));
+  });
+  toggle.setAttribute("aria-label", Number(todo.completed) === 1 ? "Вернуть дело" : "Отметить выполненным");
+
+  const body = createElement("div", "todo-body");
+  const titleRow = createElement("div", "todo-title-row");
+  titleRow.append(createElement("strong", "", todo.title));
+  if (todo.due_time) {
+    titleRow.append(createElement("span", "todo-time", todo.due_time));
+  }
+  body.append(titleRow);
+  if (todo.description) {
+    body.append(createElement("p", "todo-description", todo.description));
+  }
+
+  const actions = createElement("div", "todo-actions");
+  actions.append(
+    createButton("✎", "icon-action", () => startEditTodo(todo)),
+    createButton("×", "icon-action", () => {
+      deleteTodo(todo).catch((error) => renderError(error.message));
+    })
+  );
+
+  item.append(toggle, body, actions);
+  return item;
+}
+
+function renderSoloTodos() {
+  const section = createElement("section", "todo-section");
+  section.append(createElement("h2", "section-title", "Одиночные дела"));
+  const list = createElement("div", "todo-list");
+  const soloTodos = state.todos.filter((todo) => !todo.block_id);
+  if (soloTodos.length === 0) {
+    list.append(createElement("p", "muted", "Одиночных дел пока нет."));
+  } else {
+    soloTodos.forEach((todo) => list.append(renderTodoItem(todo)));
+  }
+  section.append(list);
+  return section;
+}
+
+function renderBlockCreator() {
+  const creator = createElement("div", "block-creator");
+  const input = createTextInput(blockDraft.title, "Новый блок: Работа, Учёба, Контент", (value) => {
+    blockDraft.title = value;
+  });
+  creator.append(input, createButton("+", "primary-button block-add-button", () => createBlock(creator)));
+  return creator;
+}
+
+function renderTodoBlocks() {
+  const section = createElement("section", "todo-section");
+  section.append(createElement("h2", "section-title", "Блоки дел"), renderBlockCreator());
+  if (state.todoBlocks.length === 0) {
+    section.append(createElement("p", "muted", "Блоков пока нет"));
+    return section;
+  }
+
+  const blocks = createElement("div", "todo-blocks");
+  state.todoBlocks.forEach((block) => {
+    const blockTodos = state.todos.filter((todo) => Number(todo.block_id) === Number(block.id));
+    const isExpanded = state.expandedBlockIds.has(Number(block.id));
+    const card = createElement("article", "todo-block");
+    const header = createElement("div", "todo-block-header");
+    const toggle = createButton(isExpanded ? "−" : "+", "block-toggle", () => {
+      if (isExpanded) {
+        state.expandedBlockIds.delete(Number(block.id));
+      } else {
+        state.expandedBlockIds.add(Number(block.id));
+      }
+      render();
+    });
+    const title = createElement("button", "todo-block-title", block.title);
+    title.type = "button";
+    title.addEventListener("click", () => {
+      if (isExpanded) {
+        state.expandedBlockIds.delete(Number(block.id));
+      } else {
+        state.expandedBlockIds.add(Number(block.id));
+      }
+      render();
+    });
+    const actions = createElement("div", "todo-actions");
+    actions.append(
+      createButton("✎", "icon-action", () => renameBlock(block).catch((error) => renderError(error.message))),
+      createButton("×", "icon-action", () => deleteBlock(block).catch((error) => renderError(error.message)))
+    );
+    header.append(toggle, title, actions);
+    card.append(header);
+
+    if (isExpanded) {
+      const body = createElement("div", "todo-block-body");
+      const addToBlock = createButton("Добавить дело в этот блок", "secondary-button", () => {
+        todoDraft.block_id = String(block.id);
+        state.editingTodoId = null;
+        render();
+      });
+      if (blockTodos.length === 0) {
+        body.append(createElement("p", "muted", "Нужно хотя бы два дела"));
+      } else {
+        blockTodos.forEach((todo) => body.append(renderTodoItem(todo)));
+      }
+      body.append(addToBlock);
+      card.append(body);
+    }
+    blocks.append(card);
+  });
+  section.append(blocks);
+  return section;
+}
+
+function renderTodosScreen() {
+  clearTimer();
+  setHeader("PROTOCOL", "Дела на сегодня", "Собери действия на выбранную дату и закрывай их по кругу.");
+  setBackVisible(false);
+  content.className = "content task-screen todos-screen";
+  content.replaceChildren(
+    renderDatePicker(),
+    renderTodoProgress(),
+    renderTodoForm(),
+    renderSoloTodos(),
+    renderTodoBlocks()
+  );
+}
+
+function renderStatsTab() {
+  clearTimer();
+  setHeader("статистика", "Статистика", "Текущий прогресс протокола и последние дни.");
+  setBackVisible(false);
+  content.className = "content task-screen";
+  content.replaceChildren();
+
+  const statsPanel = createElement("section", "card task-card");
+  statsPanel.append(createElement("h2", "section-title", "Протокол"), createStatsGrid(state.stats));
+
+  const recentPanel = createElement("section", "card task-card");
+  recentPanel.append(createElement("h2", "section-title", "Последние дни"), renderRecentDays(state.stats || {}));
+  content.append(statsPanel, recentPanel);
 }
 
 function renderHome() {
@@ -569,12 +1057,14 @@ function renderResult() {
 }
 
 function renderLoading() {
+  renderTabs();
   setHeader("ПРОТОКОЛ ДНЯ", "Протокол Дня", "Загрузка данных.");
   content.className = "content task-screen";
   content.replaceChildren(createElement("section", "card", "Загрузка…"));
 }
 
 function renderError(message) {
+  renderTabs();
   setHeader("ошибка", "Не удалось загрузить", "Проверь соединение и попробуй снова.");
   setBackVisible(false);
   content.className = "content task-screen";
@@ -590,6 +1080,17 @@ function renderError(message) {
 }
 
 function render() {
+  renderTabs();
+
+  if (state.activeTab === "todos") {
+    renderTodosScreen();
+    return;
+  }
+  if (state.activeTab === "stats") {
+    renderStatsTab();
+    return;
+  }
+
   if (state.screen !== "active") {
     clearTimer();
   }
@@ -609,6 +1110,7 @@ function render() {
 
 async function loadInitialData() {
   renderLoading();
+  state.selectedTodoDate = todayIso();
   try {
     const data = await fetchJson(`/api/tasks/today?user_id=${encodeURIComponent(state.userId)}`);
     state.task = data.task;

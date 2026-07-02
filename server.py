@@ -1,4 +1,5 @@
 import os
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,31 @@ def create_app() -> Flask:
         if minutes not in TASK_FOCUS_MINUTES:
             return None
         return minutes
+
+    def clean_date(value: Any) -> str | None:
+        text = clean_text(value, 20)
+        try:
+            return date.fromisoformat(text).isoformat()
+        except ValueError:
+            return None
+
+    def clean_time(value: Any) -> str:
+        text = clean_text(value, 5)
+        if not text:
+            return ""
+        try:
+            return datetime.strptime(text, "%H:%M").strftime("%H:%M")
+        except ValueError:
+            return ""
+
+    def clean_optional_int(value: Any) -> int | None:
+        if value in (None, "", 0, "0"):
+            return None
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
 
     def validate_block_payload(payload: dict[str, Any]) -> tuple[str, str, tuple[Response, int] | None]:
         block_type = clean_text(payload.get("type"), 20)
@@ -197,6 +223,140 @@ def create_app() -> Flask:
         if not user_id:
             return jsonify({"error": "user_id is required"}), 400
         return jsonify(database.get_daily_task_stats(user_id))
+
+    @app.get("/api/todos")
+    def api_todos() -> tuple[Response, int] | Response:
+        user_id = clean_user_id(request.args.get("user_id"))
+        due_date = clean_date(request.args.get("date")) or date.today().isoformat()
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        return jsonify({
+            "todos": database.list_todos(user_id, due_date),
+            "blocks": database.list_todo_blocks(user_id),
+            "date": due_date,
+        })
+
+    @app.post("/api/todos")
+    def api_create_todo() -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        title = clean_text(payload.get("title"), 240)
+        description = clean_content(payload.get("description"), 1000)
+        due_date = clean_date(payload.get("due_date"))
+        due_time = clean_time(payload.get("due_time"))
+        block_id = clean_optional_int(payload.get("block_id"))
+
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        if due_date is None:
+            return jsonify({"error": "due_date must be YYYY-MM-DD"}), 400
+        if block_id is not None and database.get_todo_block(user_id, block_id) is None:
+            return jsonify({"error": "Todo block not found"}), 404
+
+        todo = database.create_todo(
+            user_id=user_id,
+            title=title,
+            description=description,
+            due_date=due_date,
+            due_time=due_time,
+            block_id=block_id,
+        )
+        return jsonify({"todo": todo}), 201
+
+    @app.patch("/api/todos/<int:todo_id>")
+    def api_update_todo(todo_id: int) -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        title = clean_text(payload.get("title"), 240)
+        description = clean_content(payload.get("description"), 1000)
+        due_date = clean_date(payload.get("due_date"))
+        due_time = clean_time(payload.get("due_time"))
+        block_id = clean_optional_int(payload.get("block_id"))
+
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        if due_date is None:
+            return jsonify({"error": "due_date must be YYYY-MM-DD"}), 400
+        if block_id is not None and database.get_todo_block(user_id, block_id) is None:
+            return jsonify({"error": "Todo block not found"}), 404
+
+        todo = database.update_todo(
+            user_id=user_id,
+            todo_id=todo_id,
+            title=title,
+            description=description,
+            due_date=due_date,
+            due_time=due_time,
+            block_id=block_id,
+        )
+        if todo is None:
+            return jsonify({"error": "Todo not found"}), 404
+        return jsonify({"todo": todo})
+
+    @app.delete("/api/todos/<int:todo_id>")
+    def api_delete_todo(todo_id: int) -> tuple[Response, int] | Response:
+        user_id = clean_user_id(request.args.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not database.delete_todo(user_id, todo_id):
+            return jsonify({"error": "Todo not found"}), 404
+        return jsonify({"ok": True})
+
+    @app.post("/api/todos/<int:todo_id>/toggle")
+    def api_toggle_todo(todo_id: int) -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        todo = database.toggle_todo(user_id, todo_id)
+        if todo is None:
+            return jsonify({"error": "Todo not found"}), 404
+        return jsonify({"todo": todo})
+
+    @app.get("/api/todo-blocks")
+    def api_todo_blocks() -> tuple[Response, int] | Response:
+        user_id = clean_user_id(request.args.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        return jsonify({"blocks": database.list_todo_blocks(user_id)})
+
+    @app.post("/api/todo-blocks")
+    def api_create_todo_block() -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        title = clean_text(payload.get("title"), 160)
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        return jsonify({"block": database.create_todo_block(user_id, title)}), 201
+
+    @app.patch("/api/todo-blocks/<int:block_id>")
+    def api_update_todo_block(block_id: int) -> tuple[Response, int] | Response:
+        payload = get_json_payload()
+        user_id = clean_user_id(payload.get("user_id"))
+        title = clean_text(payload.get("title"), 160)
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not title:
+            return jsonify({"error": "title is required"}), 400
+        block = database.update_todo_block(user_id, block_id, title)
+        if block is None:
+            return jsonify({"error": "Todo block not found"}), 404
+        return jsonify({"block": block})
+
+    @app.delete("/api/todo-blocks/<int:block_id>")
+    def api_delete_todo_block(block_id: int) -> tuple[Response, int] | Response:
+        user_id = clean_user_id(request.args.get("user_id"))
+        if not user_id:
+            return jsonify({"error": "user_id is required"}), 400
+        if not database.delete_todo_block(user_id, block_id):
+            return jsonify({"error": "Todo block not found"}), 404
+        return jsonify({"ok": True})
 
     @app.get("/api/modules/<int:module_id>/lessons")
     def api_module_lessons(module_id: int) -> tuple[Response, int] | Response:

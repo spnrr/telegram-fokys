@@ -96,6 +96,27 @@ def init_db() -> None:
                 completed_at TEXT,
                 UNIQUE(user_id, date)
             );
+
+            CREATE TABLE IF NOT EXISTS todo_blocks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                created_at TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS todo_tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                due_date TEXT NOT NULL,
+                due_time TEXT,
+                block_id INTEGER,
+                completed INTEGER DEFAULT 0,
+                created_at TEXT,
+                completed_at TEXT,
+                FOREIGN KEY (block_id) REFERENCES todo_blocks(id) ON DELETE SET NULL
+            );
             """
         )
         connection.executemany(
@@ -627,3 +648,231 @@ def get_daily_task_stats(user_id: str) -> dict[str, Any]:
             for task in tasks[:10]
         ],
     }
+
+
+def list_todo_blocks(user_id: str) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT id, user_id, title, created_at
+            FROM todo_blocks
+            WHERE user_id = ?
+            ORDER BY id ASC
+            """,
+            (user_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_todo_block(user_id: str, block_id: int) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT id, user_id, title, created_at
+            FROM todo_blocks
+            WHERE user_id = ? AND id = ?
+            """,
+            (user_id, block_id),
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def create_todo_block(user_id: str, title: str) -> dict[str, Any]:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO todo_blocks (user_id, title, created_at)
+            VALUES (?, ?, ?)
+            """,
+            (user_id, title, current_timestamp()),
+        )
+        block_id = int(cursor.lastrowid)
+    block = get_todo_block(user_id, block_id)
+    if block is None:
+        raise RuntimeError("Created todo block was not found")
+    return block
+
+
+def update_todo_block(user_id: str, block_id: int, title: str) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE todo_blocks
+            SET title = ?
+            WHERE user_id = ? AND id = ?
+            """,
+            (title, user_id, block_id),
+        )
+        if cursor.rowcount == 0:
+            return None
+    return get_todo_block(user_id, block_id)
+
+
+def delete_todo_block(user_id: str, block_id: int) -> bool:
+    with get_connection() as connection:
+        block = connection.execute(
+            "SELECT id FROM todo_blocks WHERE user_id = ? AND id = ?",
+            (user_id, block_id),
+        ).fetchone()
+        if block is None:
+            return False
+        connection.execute(
+            "UPDATE todo_tasks SET block_id = NULL WHERE user_id = ? AND block_id = ?",
+            (user_id, block_id),
+        )
+        connection.execute(
+            "DELETE FROM todo_blocks WHERE user_id = ? AND id = ?",
+            (user_id, block_id),
+        )
+    return True
+
+
+def list_todos(user_id: str, due_date: str) -> list[dict[str, Any]]:
+    with get_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                todo_tasks.id,
+                todo_tasks.user_id,
+                todo_tasks.title,
+                todo_tasks.description,
+                todo_tasks.due_date,
+                todo_tasks.due_time,
+                todo_tasks.block_id,
+                todo_tasks.completed,
+                todo_tasks.created_at,
+                todo_tasks.completed_at,
+                todo_blocks.title AS block_title
+            FROM todo_tasks
+            LEFT JOIN todo_blocks ON todo_blocks.id = todo_tasks.block_id
+            WHERE todo_tasks.user_id = ? AND todo_tasks.due_date = ?
+            ORDER BY
+                CASE WHEN todo_tasks.due_time IS NULL OR todo_tasks.due_time = '' THEN 1 ELSE 0 END,
+                todo_tasks.due_time ASC,
+                todo_tasks.id ASC
+            """,
+            (user_id, due_date),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_todo(user_id: str, todo_id: int) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        row = connection.execute(
+            """
+            SELECT
+                todo_tasks.id,
+                todo_tasks.user_id,
+                todo_tasks.title,
+                todo_tasks.description,
+                todo_tasks.due_date,
+                todo_tasks.due_time,
+                todo_tasks.block_id,
+                todo_tasks.completed,
+                todo_tasks.created_at,
+                todo_tasks.completed_at,
+                todo_blocks.title AS block_title
+            FROM todo_tasks
+            LEFT JOIN todo_blocks ON todo_blocks.id = todo_tasks.block_id
+            WHERE todo_tasks.user_id = ? AND todo_tasks.id = ?
+            """,
+            (user_id, todo_id),
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def create_todo(
+    user_id: str,
+    title: str,
+    description: str,
+    due_date: str,
+    due_time: str,
+    block_id: int | None = None,
+) -> dict[str, Any]:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO todo_tasks (
+                user_id,
+                title,
+                description,
+                due_date,
+                due_time,
+                block_id,
+                completed,
+                created_at,
+                completed_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, 0, ?, NULL)
+            """,
+            (
+                user_id,
+                title,
+                description,
+                due_date,
+                due_time,
+                block_id,
+                current_timestamp(),
+            ),
+        )
+        todo_id = int(cursor.lastrowid)
+    todo = get_todo(user_id, todo_id)
+    if todo is None:
+        raise RuntimeError("Created todo was not found")
+    return todo
+
+
+def update_todo(
+    user_id: str,
+    todo_id: int,
+    title: str,
+    description: str,
+    due_date: str,
+    due_time: str,
+    block_id: int | None,
+) -> dict[str, Any] | None:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE todo_tasks
+            SET
+                title = ?,
+                description = ?,
+                due_date = ?,
+                due_time = ?,
+                block_id = ?
+            WHERE user_id = ? AND id = ?
+            """,
+            (title, description, due_date, due_time, block_id, user_id, todo_id),
+        )
+        if cursor.rowcount == 0:
+            return None
+    return get_todo(user_id, todo_id)
+
+
+def delete_todo(user_id: str, todo_id: int) -> bool:
+    with get_connection() as connection:
+        cursor = connection.execute(
+            "DELETE FROM todo_tasks WHERE user_id = ? AND id = ?",
+            (user_id, todo_id),
+        )
+    return cursor.rowcount > 0
+
+
+def toggle_todo(user_id: str, todo_id: int) -> dict[str, Any] | None:
+    todo = get_todo(user_id, todo_id)
+    if todo is None:
+        return None
+
+    completed = 0 if int(todo.get("completed") or 0) == 1 else 1
+    completed_at = current_timestamp() if completed else None
+    with get_connection() as connection:
+        connection.execute(
+            """
+            UPDATE todo_tasks
+            SET completed = ?, completed_at = ?
+            WHERE user_id = ? AND id = ?
+            """,
+            (completed, completed_at, user_id, todo_id),
+        )
+    return get_todo(user_id, todo_id)
