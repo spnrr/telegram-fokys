@@ -18,6 +18,9 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 - [x] (2026-07-03 14:50Z) Replaced the landing hero with a generated close-up compass image and reduced the hero height to stay closer to the second reference.
 - [x] (2026-07-03 15:03Z) Replaced the physical compass image with a more reference-faithful glowing zero/compass sigil and adjusted hero image fitting so the symbol stays intact.
 - [x] (2026-07-03 15:12Z) Reworked the hero away from a direct reference copy into an original asymmetric vector/compass sigil and changed hero copy to avoid matching the reference language.
+- [x] (2026-07-03 18:25Z) Audited all main frontend surfaces through the `frontend-design`, `ui-ux-pro-max`, and `taste-skill` lenses before editing.
+- [x] (2026-07-03 18:25Z) Unified course, lesson, admin, and Protocol Day surfaces around darker shared tokens, calmer radii, stronger CTA contrast, and more readable long-form text.
+- [x] (2026-07-03 18:25Z) Removed a non-functional landing profile button and added a frontend-only "Правила" tab to Protocol Day.
 
 ## Surprises & Discoveries
 
@@ -35,6 +38,12 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 
 - Observation: The glowing zero/Protocol lockup became too close to the reference and created brand-copy risk.
   Evidence: The user said it was copied one-to-one and asked to redo it before it could cause problems.
+
+- Observation: The project had two adjacent dark UI systems rather than one coherent design system.
+  Evidence: The course used softer large cards and centered lesson text, while `webapp/tasks/style.css` used sharper 8px cards, a stronger purple accent, and larger form-like headers.
+
+- Observation: The Protocol Day tabs referenced by the user included "Правила", but the frontend only rendered "Протокол", "Дела", and "Статистика".
+  Evidence: `renderTabs` in `webapp/tasks/app.js` contained three tab entries before this pass.
 
 ## Decision Log
 
@@ -66,9 +75,19 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
   Rationale: The new mark keeps the ideas of control, direction, and discipline but uses a different silhouette, layout, and vocabulary so it does not copy the provided references.
   Date/Author: 2026-07-03 / Codex
 
+- Decision: Treat long lesson text as reading content, not poster copy.
+  Rationale: Centered text can look premium for short statements but becomes tiring in real lessons. Left-aligned text with a readable measure improves comprehension.
+  Date/Author: 2026-07-03 / Codex
+
+- Decision: Keep the Protocol Day "Правила" tab frontend-only for now.
+  Rationale: The user asked not to break backend or deployment, and the rules are stable product copy that does not need storage yet.
+  Date/Author: 2026-07-03 / Codex
+
 ## Outcomes & Retrospective
 
 Implemented a frontend-only Protocol visual refresh. The landing screen now has a stronger brand bar, a dark compass hero, quieter product tabs, a heavier product card, and a search field closer to the references. The module screen is now a dark course menu with a close button and large stage rows. Lesson text received a calmer long-read treatment while preserving blocks, media, navigation, and highlight behavior.
+
+The 2026-07-03 audit pass unified the broader frontend: course lesson text is now easier to read, the landing CTA has clear contrast, the empty profile-like header action was removed, the admin panel now shares the dark material system, and Protocol Day has more consistent surfaces plus a new Rules tab.
 
 ## Context and Orientation
 
@@ -111,6 +130,17 @@ Validation evidence from 2026-07-03:
     C:\Users\Sasha\Documents\telegram fokus bot> C:\Users\Sasha\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --check webapp\app.js
     # no output means success
 
+Validation evidence from 2026-07-03 audit pass:
+
+    C:\Users\Sasha\Documents\telegram fokus bot> python -m py_compile bot.py database.py server.py start.py
+    # no output means success
+
+    C:\Users\Sasha\Documents\telegram fokus bot> C:\Users\Sasha\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --check webapp\app.js
+    # no output means success
+
+    C:\Users\Sasha\Documents\telegram fokus bot> C:\Users\Sasha\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe --check webapp\tasks\app.js
+    # no output means success
+
 ## Interfaces and Dependencies
 
 No new external dependencies are required. Existing backend endpoints and localStorage keys remain unchanged.
@@ -124,3 +154,5 @@ Revision note: Replaced the default hero asset with a generated close-up compass
 Revision note: Replaced the physical compass asset with a glowing zero/compass sigil to move the hero back toward the user's first and second references.
 
 Revision note: Replaced the zero/Protocol-like hero with an original vector/compass emblem and changed the default hero wording to "ВЕКТОР" with a control/focus/action kicker because the previous direction was too close to the reference.
+
+Revision note: Added a full frontend UX/UI audit pass and implemented Priority 1 polish across course, lessons, admin, and Protocol Day while preserving backend, Railway startup, bot behavior, lessons, and highlight logic.

@@ -994,12 +994,6 @@ function renderLandingScreen() {
   const headerActions = document.createElement("div");
   headerActions.className = "landing-header-actions";
 
-  const profileButton = document.createElement("button");
-  profileButton.className = "landing-icon-button";
-  profileButton.type = "button";
-  profileButton.setAttribute("aria-label", "Профиль");
-  profileButton.textContent = "◎";
-
   const menuButton = document.createElement("button");
   menuButton.className = "landing-icon-button";
   menuButton.type = "button";
@@ -1011,7 +1005,7 @@ function renderLandingScreen() {
     });
   });
 
-  headerActions.append(profileButton, menuButton);
+  headerActions.append(menuButton);
   header.append(brand, headerActions);
 
   const hero = document.createElement("section");

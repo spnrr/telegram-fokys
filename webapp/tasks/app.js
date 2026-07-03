@@ -169,6 +169,7 @@ function renderTabs() {
     ["protocol", "Протокол"],
     ["todos", "Дела"],
     ["stats", "Статистика"],
+    ["rules", "Правила"],
   ];
   tabNav.replaceChildren();
   tabs.forEach(([key, label]) => {
@@ -193,6 +194,11 @@ function switchTab(tab) {
   }
   if (tab === "todos") {
     loadTodos().catch((error) => renderError(error.message));
+    return;
+  }
+  if (tab === "rules") {
+    state.screen = "rules";
+    render();
     return;
   }
   state.screen = "stats";
@@ -744,6 +750,32 @@ function renderStatsTab() {
   content.append(statsPanel, recentPanel);
 }
 
+function renderRulesTab() {
+  clearTimer();
+  setHeader("правила", "Правила", "Короткий свод, чтобы не спорить с собой в течение дня.");
+  setBackVisible(false);
+  content.className = "content task-screen rules-screen";
+  content.replaceChildren();
+
+  const rules = [
+    ["01", "Главное действие закрывается первым."],
+    ["02", "Запрет дня действует до вечернего разбора."],
+    ["03", "Фокус-сессия начинается без подготовки и торга."],
+    ["04", "Если день сломан, фиксируется одна правка на завтра."],
+  ];
+
+  const panel = createElement("section", "card task-card rules-card");
+  panel.append(createElement("h2", "section-title", "Базовый протокол"));
+  const list = createElement("div", "rules-list");
+  rules.forEach(([number, text]) => {
+    const item = createElement("article", "rule-item");
+    item.append(createElement("span", "", number), createElement("strong", "", text));
+    list.append(item);
+  });
+  panel.append(list);
+  content.append(panel);
+}
+
 function renderHome() {
   clearTimer();
   setHeader("ПРОТОКОЛ ДНЯ", "Протокол Дня", "Выбери главное действие и не слей день.");
@@ -1088,6 +1120,10 @@ function render() {
   }
   if (state.activeTab === "stats") {
     renderStatsTab();
+    return;
+  }
+  if (state.activeTab === "rules") {
+    renderRulesTab();
     return;
   }
 

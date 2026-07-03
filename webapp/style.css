@@ -700,6 +700,87 @@ code {
   background: rgba(82, 105, 255, 0.1);
 }
 
+body:not(.mini-app) {
+  background:
+    radial-gradient(circle at 50% -20%, rgba(255, 255, 255, 0.05), transparent 260px),
+    #0b0d0f;
+  color: #f4f4f5;
+}
+
+body:not(.mini-app) .admin-shell {
+  width: min(100%, 1040px);
+}
+
+body:not(.mini-app) .panel,
+body:not(.mini-app) .admin-card,
+body:not(.mini-app) .lesson-editor {
+  border-color: rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+}
+
+body:not(.mini-app) input,
+body:not(.mini-app) select,
+body:not(.mini-app) textarea {
+  border-color: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: #101318;
+  color: #f4f4f5;
+}
+
+body:not(.mini-app) input::placeholder,
+body:not(.mini-app) textarea::placeholder {
+  color: #6b7280;
+}
+
+body:not(.mini-app) .primary-button {
+  background: #f4f4f5;
+  color: #0b0d0f;
+}
+
+body:not(.mini-app) .secondary-button,
+body:not(.mini-app) .secondary-link,
+body:not(.mini-app) .icon-button {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #161a1f;
+  color: #f4f4f5;
+}
+
+body:not(.mini-app) .danger-button {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+body:not(.mini-app) .block-add-form,
+body:not(.mini-app) .block-editor {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body:not(.mini-app) .page-subtitle,
+body:not(.mini-app) .muted,
+body:not(.mini-app) .legacy-block {
+  color: #9ca3af;
+}
+
+body:not(.mini-app) .eyebrow {
+  color: #6b7280;
+}
+
+body:not(.mini-app) code {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f4f4f5;
+}
+
+body:not(.mini-app) .status {
+  color: #a7f3d0;
+}
+
+body:not(.mini-app) .status.error {
+  color: #fca5a5;
+}
+
 @media (min-width: 620px) {
   .app-shell {
     padding-right: 28px;
@@ -969,7 +1050,7 @@ body.mini-app .step-lesson-number {
 
 body.mini-app .step-lesson-title {
   color: var(--text);
-  font-size: clamp(1.18rem, 5vw, 1.62rem);
+  font-size: clamp(1.08rem, 4.5vw, 1.42rem);
   font-weight: 540;
   letter-spacing: -0.025em;
 }
@@ -989,10 +1070,13 @@ body.mini-app .lesson {
 
 body.mini-app .lesson p {
   color: var(--text);
-  font-size: clamp(1.06rem, 4.4vw, 1.42rem);
-  line-height: 1.82;
+  max-width: 66ch;
+  margin-right: auto;
+  margin-left: auto;
+  font-size: clamp(1.02rem, 4vw, 1.22rem);
+  line-height: 1.74;
   letter-spacing: -0.015em;
-  text-align: center;
+  text-align: left;
 }
 
 body.mini-app .lesson-block {
@@ -1094,7 +1178,7 @@ body.mini-app .landing-header {
   padding: 12px 10px;
   border: 1px solid rgba(255, 255, 255, 0.045);
   border-radius: 24px;
-  background: #252932;
+  background: #20242c;
 }
 
 body.mini-app .landing-brand {
@@ -1174,7 +1258,7 @@ body.mini-app .landing-hero {
   position: relative;
   overflow: hidden;
   border: 0;
-  border-radius: 0;
+  border-radius: 0 0 30px 30px;
   background:
     radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.1), transparent 28%),
     #030405;
@@ -1185,7 +1269,7 @@ body.mini-app .landing-hero-image {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1.18;
-  max-height: min(620px, 72vh);
+  max-height: min(520px, 64vh);
   min-height: 0;
   overflow: hidden;
   background: #030405;
@@ -1243,7 +1327,7 @@ body.mini-app .landing-hero-copy {
   right: 0;
   bottom: 0;
   left: 0;
-  padding: 0 24px 30px;
+  padding: 0 24px 24px;
   background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.82) 62%, #030405);
   text-align: center;
   pointer-events: none;
@@ -1265,7 +1349,7 @@ body.mini-app .landing-product-body h3 {
 
 body.mini-app .landing-hero-copy h2 {
   margin-top: 9px;
-  font-size: clamp(2.55rem, 13vw, 5.6rem);
+  font-size: clamp(2.1rem, 10vw, 4.4rem);
   line-height: 0.92;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -1321,8 +1405,8 @@ body.mini-app .landing-tab.is-active {
 body.mini-app .landing-product-card {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.075);
-  border-radius: 34px;
-  background: #262a34;
+  border-radius: 28px;
+  background: #20242c;
   box-shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
 }
 
@@ -1384,14 +1468,14 @@ body.mini-app .landing-continue-button {
   width: 100%;
   min-height: 66px;
   padding: 0 20px;
-  background: rgba(255, 255, 255, 0.28);
-  color: rgba(255, 255, 255, 0.72);
+  background: var(--text);
+  color: var(--bg);
 }
 
 body.mini-app .landing-all-steps {
   width: 100%;
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: #1a1f26;
   color: var(--text);
 }
 
@@ -1400,7 +1484,7 @@ body.mini-app .landing-search input {
   margin: 0;
   border-color: rgba(255, 255, 255, 0.13);
   border-radius: 18px;
-  background: #242833;
+  background: #1a1f26;
   color: var(--text);
   font-size: clamp(1.2rem, 5vw, 1.7rem);
 }
@@ -1421,6 +1505,25 @@ body.mini-app .landing-footer span {
   height: 4px;
   border-radius: 50%;
   background: var(--muted-2);
+}
+
+body.mini-app .landing-icon-button:focus-visible,
+body.mini-app .landing-continue-button:focus-visible,
+body.mini-app .landing-all-steps:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.22);
+  outline-offset: 2px;
+}
+
+body.mini-app .course-steps {
+  background: #20242c;
+}
+
+body.mini-app .course-step-toggle {
+  min-height: 100px;
+}
+
+body.mini-app .course-menu-intro {
+  padding-bottom: 28px;
 }
 
 @media (min-width: 620px) {
