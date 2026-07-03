@@ -750,7 +750,8 @@ body.mini-app {
   width: 100%;
   overflow-x: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 260px),
+    radial-gradient(circle at 50% -20%, rgba(154, 166, 142, 0.16), transparent 220px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 260px),
     var(--bg);
   color: var(--text);
 }
@@ -765,7 +766,7 @@ body.mini-app .app-shell {
 body.mini-app .topbar {
   align-items: flex-start;
   gap: 14px;
-  padding-top: 4px;
+  padding: 6px 0 2px;
 }
 
 body.mini-app .back-button {
@@ -799,9 +800,9 @@ body.mini-app .eyebrow {
 
 body.mini-app h1 {
   color: var(--text);
-  font-size: clamp(2rem, 9vw, 3rem);
+  font-size: clamp(2rem, 9vw, 3.15rem);
   line-height: 1.03;
-  letter-spacing: 0;
+  letter-spacing: -0.035em;
 }
 
 body.mini-app .page-subtitle {
@@ -817,19 +818,71 @@ body.mini-app .content {
 }
 
 body.mini-app .course-steps {
-  gap: 12px;
+  gap: 0;
+  padding: 4px 0 28px;
+  border-radius: 30px;
+  background: #252932;
+}
+
+body.mini-app .course-menu-intro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  padding: 26px 26px 38px;
+}
+
+body.mini-app .course-menu-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.mini-app .course-menu-title {
+  display: grid;
+  gap: 30px;
+  min-width: 0;
+}
+
+body.mini-app .course-menu-title::before {
+  content: "Меню курса";
+  color: var(--text);
+  font-size: clamp(1.45rem, 6vw, 2rem);
+  font-weight: 560;
+  letter-spacing: -0.035em;
+}
+
+body.mini-app .course-menu-title span {
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+body.mini-app .course-menu-title strong {
+  margin-top: -22px;
+  color: var(--text);
+  font-size: clamp(1.5rem, 6vw, 2.25rem);
+  font-weight: 780;
+  letter-spacing: -0.04em;
 }
 
 body.mini-app .course-step {
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: 0 18px 50px var(--shadow);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 body.mini-app .course-step-toggle {
-  min-height: 76px;
-  padding: 17px 18px;
+  min-height: 112px;
+  padding: 20px 26px;
   color: var(--text);
   transition: background-color 160ms ease;
 }
@@ -846,26 +899,28 @@ body.mini-app .course-step-toggle:active {
 
 body.mini-app .course-step-label {
   color: var(--muted-2);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: clamp(1rem, 4vw, 1.18rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-transform: none;
 }
 
 body.mini-app .course-step-title {
   color: var(--text);
-  font-size: 1.06rem;
-  font-weight: 720;
-  line-height: 1.3;
+  font-size: clamp(1.32rem, 5.8vw, 2rem);
+  font-weight: 780;
+  line-height: 1.16;
+  letter-spacing: -0.035em;
 }
 
 body.mini-app .course-step-arrow {
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border);
-  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 16px;
   background: transparent;
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 1.25rem;
   transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
 
@@ -876,32 +931,32 @@ body.mini-app .course-step-toggle:focus-visible .course-step-arrow {
 }
 
 body.mini-app .step-lessons {
-  gap: 8px;
-  padding: 0 14px 16px;
+  gap: 0;
+  padding: 0 26px 18px;
 }
 
 body.mini-app .step-lessons:not([hidden]) {
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
+  border-top: 0;
+  padding-top: 0;
 }
 
 body.mini-app .step-lesson {
-  grid-template-columns: 44px minmax(0, 1fr);
-  min-height: 48px;
-  padding: 11px 12px;
-  border: 1px solid var(--border-soft);
-  border-radius: 14px;
-  background: var(--surface-2);
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 58px;
+  padding: 10px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text);
-  transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  transition: transform 160ms ease, color 160ms ease;
 }
 
 body.mini-app .step-lesson:hover,
 body.mini-app .step-lesson:focus-visible {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: #222832;
+  color: #ffffff;
+  background: transparent;
   outline: none;
-  transform: translateY(-1px);
+  transform: translateX(4px);
 }
 
 body.mini-app .step-lesson:active {
@@ -909,14 +964,14 @@ body.mini-app .step-lesson:active {
 }
 
 body.mini-app .step-lesson-number {
-  color: var(--muted-2);
-  font-size: 0.72rem;
-  font-weight: 750;
+  display: none;
 }
 
 body.mini-app .step-lesson-title {
   color: var(--text);
-  font-weight: 650;
+  font-size: clamp(1.18rem, 5vw, 1.62rem);
+  font-weight: 540;
+  letter-spacing: -0.025em;
 }
 
 body.mini-app .step-empty,
@@ -925,17 +980,19 @@ body.mini-app .muted {
 }
 
 body.mini-app .lesson {
-  padding: 22px;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background: var(--surface);
-  box-shadow: 0 18px 50px var(--shadow);
+  padding: clamp(24px, 6vw, 54px) clamp(18px, 5vw, 44px);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 28px;
+  background: #252932;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
 }
 
 body.mini-app .lesson p {
   color: var(--text);
-  font-size: 1.02rem;
-  line-height: 1.7;
+  font-size: clamp(1.06rem, 4.4vw, 1.42rem);
+  line-height: 1.82;
+  letter-spacing: -0.015em;
+  text-align: center;
 }
 
 body.mini-app .lesson-block {
@@ -1020,7 +1077,7 @@ body.mini-app .landing-screen {
 
 body.mini-app .landing-shell {
   display: grid;
-  gap: 22px;
+  gap: 30px;
 }
 
 body.mini-app .landing-header,
@@ -1033,7 +1090,11 @@ body.mini-app .landing-footer {
 }
 
 body.mini-app .landing-header {
-  padding: 4px 0 2px;
+  min-height: 76px;
+  padding: 12px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.045);
+  border-radius: 24px;
+  background: #252932;
 }
 
 body.mini-app .landing-brand {
@@ -1044,16 +1105,20 @@ body.mini-app .landing-brand {
 
 body.mini-app .landing-logo {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 54px;
+  height: 54px;
   place-items: center;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 44%),
+    #050607;
   color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 850;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 400;
   letter-spacing: 0.04em;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
 }
 
 body.mini-app .landing-brand strong,
@@ -1063,8 +1128,10 @@ body.mini-app .landing-brand span {
 
 body.mini-app .landing-brand strong {
   color: var(--text);
-  font-size: 1rem;
+  font-size: clamp(1.55rem, 6vw, 2.2rem);
+  font-weight: 620;
   line-height: 1.2;
+  letter-spacing: -0.035em;
 }
 
 body.mini-app .landing-brand span,
@@ -1083,22 +1150,41 @@ body.mini-app .landing-header-badge {
   background: rgba(255, 255, 255, 0.035);
 }
 
+body.mini-app .landing-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+body.mini-app .landing-icon-button {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: #aeb4bf;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
 body.mini-app .landing-hero {
   overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 28px;
+  border: 0;
+  border-radius: 0;
   background:
-    radial-gradient(circle at 18% 18%, rgba(168, 85, 247, 0.16), transparent 30%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
-    var(--surface);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.18), transparent 22%),
+    #030405;
+  box-shadow: none;
 }
 
 body.mini-app .landing-hero-image {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
-  max-height: 520px;
+  aspect-ratio: 4 / 5;
+  max-height: 760px;
   min-height: 0;
   overflow: hidden;
   background: #07080a;
@@ -1116,13 +1202,14 @@ body.mini-app .landing-product-image img {
 
 body.mini-app .landing-image-placeholder {
   display: grid;
-  min-height: inherit;
+  height: 100%;
+  min-height: 320px;
   place-items: center;
   padding: 34px 22px;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent),
-    radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.11), transparent 34%),
-    #07080a;
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.18), transparent 18%),
+    repeating-radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 13px),
+    #030405;
   color: var(--text);
   text-align: center;
 }
@@ -1136,14 +1223,17 @@ body.mini-app .landing-image-placeholder span {
 
 body.mini-app .landing-image-placeholder strong {
   margin-top: 8px;
-  font-size: clamp(2.1rem, 10vw, 4.6rem);
-  font-weight: 850;
-  letter-spacing: -0.06em;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(4.8rem, 36vw, 12rem);
+  font-weight: 400;
+  letter-spacing: -0.08em;
   text-transform: uppercase;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.34);
 }
 
 body.mini-app .landing-hero-copy {
-  padding: 24px;
+  padding: 24px 26px 30px;
+  text-align: center;
 }
 
 body.mini-app .landing-hero-copy span {
@@ -1162,9 +1252,10 @@ body.mini-app .landing-product-body h3 {
 
 body.mini-app .landing-hero-copy h2 {
   margin-top: 8px;
-  font-size: clamp(2.2rem, 10vw, 4.2rem);
+  font-size: clamp(2.2rem, 12vw, 5.2rem);
   line-height: 0.98;
-  letter-spacing: -0.06em;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 body.mini-app .landing-hero-copy p,
@@ -1175,7 +1266,8 @@ body.mini-app .landing-product-body p {
 
 body.mini-app .landing-products {
   display: grid;
-  gap: 15px;
+  gap: 22px;
+  padding: 0 2px;
 }
 
 body.mini-app .landing-products h2 {
@@ -1185,15 +1277,15 @@ body.mini-app .landing-products h2 {
 
 body.mini-app .landing-tabs {
   display: flex;
-  gap: 8px;
-  padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.035);
+  gap: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 body.mini-app .landing-tab {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 40px;
   border: 0;
   border-radius: 999px;
@@ -1203,15 +1295,16 @@ body.mini-app .landing-tab {
 }
 
 body.mini-app .landing-tab.is-active {
-  background: rgba(255, 255, 255, 0.12);
+  background: transparent;
   color: var(--text);
 }
 
 body.mini-app .landing-product-card {
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  border-radius: 34px;
+  background: #262a34;
+  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
 }
 
 body.mini-app .landing-product-image {
@@ -1225,12 +1318,14 @@ body.mini-app .landing-product-image {
 
 body.mini-app .landing-product-body {
   display: grid;
-  gap: 10px;
-  padding: 18px;
+  gap: 14px;
+  padding: clamp(24px, 6vw, 42px);
 }
 
 body.mini-app .landing-product-body h3 {
-  font-size: 1.35rem;
+  font-size: clamp(2rem, 9vw, 3.2rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
 }
 
 body.mini-app .landing-product-body p {
@@ -1239,12 +1334,22 @@ body.mini-app .landing-product-body p {
 
 body.mini-app .landing-product-progress {
   color: var(--text) !important;
-  font-weight: 720;
+  font-weight: 620;
+}
+
+body.mini-app .landing-product-meta {
+  display: grid;
+  gap: 18px;
+  align-items: stretch;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 body.mini-app .landing-product-meta span {
-  color: var(--muted);
-  font-weight: 750;
+  color: var(--text);
+  font-size: clamp(2rem, 8vw, 3.35rem);
+  font-weight: 850;
+  letter-spacing: -0.06em;
 }
 
 body.mini-app .landing-continue-button,
@@ -1257,9 +1362,11 @@ body.mini-app .landing-all-steps {
 }
 
 body.mini-app .landing-continue-button {
+  width: 100%;
+  min-height: 66px;
   padding: 0 20px;
-  background: var(--text);
-  color: var(--bg);
+  background: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 body.mini-app .landing-all-steps {
@@ -1270,12 +1377,13 @@ body.mini-app .landing-all-steps {
 }
 
 body.mini-app .landing-search input {
-  min-height: 48px;
+  min-height: 66px;
   margin: 0;
-  border-color: var(--border);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.13);
+  border-radius: 18px;
+  background: #242833;
   color: var(--text);
+  font-size: clamp(1.2rem, 5vw, 1.7rem);
 }
 
 body.mini-app .landing-search input::placeholder {

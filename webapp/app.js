@@ -952,7 +952,7 @@ function renderLandingScreen() {
 
   const logo = document.createElement("div");
   logo.className = "landing-logo";
-  logo.textContent = "P0";
+  logo.textContent = "0";
 
   const brandText = document.createElement("div");
   const brandTitle = document.createElement("strong");
@@ -962,17 +962,35 @@ function renderLandingScreen() {
   brandText.append(brandTitle, brandSubtitle);
   brand.append(logo, brandText);
 
-  const headerBadge = document.createElement("span");
-  headerBadge.className = "landing-header-badge";
-  headerBadge.textContent = "mini app";
-  header.append(brand, headerBadge);
+  const headerActions = document.createElement("div");
+  headerActions.className = "landing-header-actions";
+
+  const profileButton = document.createElement("button");
+  profileButton.className = "landing-icon-button";
+  profileButton.type = "button";
+  profileButton.setAttribute("aria-label", "Профиль");
+  profileButton.textContent = "◎";
+
+  const menuButton = document.createElement("button");
+  menuButton.className = "landing-icon-button";
+  menuButton.type = "button";
+  menuButton.setAttribute("aria-label", "Меню курса");
+  menuButton.textContent = "☰";
+  menuButton.addEventListener("click", () => {
+    showModulesScreen().catch((error) => {
+      showMessage("Не удалось загрузить ступени", error.message, "Повторить", showModulesScreen);
+    });
+  });
+
+  headerActions.append(profileButton, menuButton);
+  header.append(brand, headerActions);
 
   const hero = document.createElement("section");
   hero.className = "landing-hero";
   const heroImage = createLandingImage(
     courseLandingConfig.heroImageUrl,
     "landing-hero-image",
-    courseLandingConfig.heroKicker
+    "0"
   );
 
   const heroCopy = document.createElement("div");
@@ -1089,7 +1107,7 @@ function renderModuleSteps(resetLessonState = true) {
   hideSelectionToolbar();
   content.className = "content course-steps";
   content.replaceChildren();
-  setHeader("protocol", "Ступени курса", "Раскройте модуль и выберите урок.");
+  setHeader("protocol", "Меню курса", "Раскройте ступень и выберите урок.");
 
   if (state.modules.length === 0) {
     showMessage(
@@ -1099,6 +1117,29 @@ function renderModuleSteps(resetLessonState = true) {
     syncBackButtons();
     return;
   }
+
+  const menuIntro = document.createElement("section");
+  menuIntro.className = "course-menu-intro";
+
+  const closeMenu = document.createElement("button");
+  closeMenu.className = "course-menu-close";
+  closeMenu.type = "button";
+  closeMenu.setAttribute("aria-label", "Вернуться на главный экран");
+  closeMenu.textContent = "×";
+  closeMenu.addEventListener("click", renderLandingScreen);
+
+  const menuTitle = document.createElement("div");
+  menuTitle.className = "course-menu-title";
+
+  const menuLabel = document.createElement("span");
+  menuLabel.textContent = "Курс";
+
+  const menuName = document.createElement("strong");
+  menuName.textContent = courseLandingConfig.productTitle || "Протокол 0.";
+
+  menuTitle.append(menuLabel, menuName);
+  menuIntro.append(closeMenu, menuTitle);
+  content.append(menuIntro);
 
   state.modules.forEach((module, index) => {
     content.append(createModuleStep(module, index));
