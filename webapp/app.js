@@ -14,10 +14,10 @@ let pendingHighlightSelection = null;
 const DEFAULT_COURSE_LANDING_CONFIG = {
   brandTitle: "Протокол 0.",
   brandSubtitle: "закрытый курс",
-  heroImageUrl: "",
-  heroKicker: "ПРОТОКОЛ",
-  heroTitle: "Следуй протоколу",
-  heroDescription: "Закрытая система уроков, фокуса и движения вперёд.",
+  heroImageUrl: "assets/protocol-compass-hero.png",
+  heroKicker: "КОНТРОЛЬ / ФОКУС / ДЕЙСТВИЕ",
+  heroTitle: "ВЕКТОР",
+  heroDescription: "Выберите направление и держите курс.",
   productImageUrl: "",
   productTitle: "Протокол 0.",
   productDescription: "Ты уже здесь. Обратного пути нет.",
@@ -706,6 +706,9 @@ async function loadCourseLandingConfig() {
   try {
     const settings = await fetchJson("/api/course-settings");
     courseLandingConfig = { ...DEFAULT_COURSE_LANDING_CONFIG, ...settings };
+    if (!courseLandingConfig.heroImageUrl) {
+      courseLandingConfig.heroImageUrl = DEFAULT_COURSE_LANDING_CONFIG.heroImageUrl;
+    }
   } catch (error) {
     console.debug("Course landing settings fallback used:", error);
     courseLandingConfig = { ...DEFAULT_COURSE_LANDING_CONFIG };
@@ -883,6 +886,32 @@ function createLandingImage(url, className, label) {
   return wrapper;
 }
 
+function getHeroDisplayCopy() {
+  const isOldDefaultCopy =
+    (
+      courseLandingConfig.heroKicker === "ПРОТОКОЛ" &&
+      courseLandingConfig.heroTitle === "Следуй протоколу"
+    ) ||
+    (
+      courseLandingConfig.heroKicker === "СЛЕДУЙ ПРОТОКОЛУ" &&
+      courseLandingConfig.heroTitle === "ПРОТОКОЛ"
+    );
+
+  if (isOldDefaultCopy) {
+    return {
+      kicker: DEFAULT_COURSE_LANDING_CONFIG.heroKicker,
+      title: DEFAULT_COURSE_LANDING_CONFIG.heroTitle,
+      description: courseLandingConfig.heroDescription,
+    };
+  }
+
+  return {
+    kicker: courseLandingConfig.heroKicker,
+    title: courseLandingConfig.heroTitle,
+    description: courseLandingConfig.heroDescription,
+  };
+}
+
 function createLandingPlaceholder(label) {
   const placeholder = document.createElement("div");
   placeholder.className = "landing-image-placeholder";
@@ -995,12 +1024,13 @@ function renderLandingScreen() {
 
   const heroCopy = document.createElement("div");
   heroCopy.className = "landing-hero-copy";
+  const heroDisplayCopy = getHeroDisplayCopy();
   const heroKicker = document.createElement("span");
-  heroKicker.textContent = courseLandingConfig.heroKicker;
+  heroKicker.textContent = heroDisplayCopy.kicker;
   const heroTitle = document.createElement("h2");
-  heroTitle.textContent = courseLandingConfig.heroTitle;
+  heroTitle.textContent = heroDisplayCopy.title;
   const heroDescription = document.createElement("p");
-  heroDescription.textContent = courseLandingConfig.heroDescription;
+  heroDescription.textContent = heroDisplayCopy.description;
   heroCopy.append(heroKicker, heroTitle, heroDescription);
   hero.append(heroImage, heroCopy);
 
@@ -1107,7 +1137,7 @@ function renderModuleSteps(resetLessonState = true) {
   hideSelectionToolbar();
   content.className = "content course-steps";
   content.replaceChildren();
-  setHeader("protocol", "Меню курса", "Раскройте ступень и выберите урок.");
+  setCourseHeaderVisible(false);
 
   if (state.modules.length === 0) {
     showMessage(

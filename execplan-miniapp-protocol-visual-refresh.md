@@ -15,6 +15,9 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 - [x] (2026-07-03 14:40Z) Updated course steps into a cleaner menu-like list inspired by the references while keeping existing expand/collapse behavior.
 - [x] (2026-07-03 14:40Z) Updated lesson typography and reading layout without breaking lesson blocks, text highlights, images, videos, or navigation.
 - [x] (2026-07-03 14:40Z) Ran syntax checks and recorded validation evidence.
+- [x] (2026-07-03 14:50Z) Replaced the landing hero with a generated close-up compass image and reduced the hero height to stay closer to the second reference.
+- [x] (2026-07-03 15:03Z) Replaced the physical compass image with a more reference-faithful glowing zero/compass sigil and adjusted hero image fitting so the symbol stays intact.
+- [x] (2026-07-03 15:12Z) Reworked the hero away from a direct reference copy into an original asymmetric vector/compass sigil and changed hero copy to avoid matching the reference language.
 
 ## Surprises & Discoveries
 
@@ -23,6 +26,15 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 
 - Observation: The supplied references use fewer visible borders and fewer nested cards than the current Mini App.
   Evidence: The course menu reference shows modules as large text rows on one dark surface, while the old implementation displayed every module as an individual card.
+
+- Observation: A hero with extra objects such as a hand, pen, desk, or landscape weakens the Protocol feel.
+  Evidence: The user explicitly asked to remove the hand and pen, then clarified that the image should be only a close-up compass.
+
+- Observation: A realistic physical compass reads as a third design direction rather than the supplied references.
+  Evidence: The user said the design had moved away from references 1 and 2 and asked to make the compass like those examples.
+
+- Observation: The glowing zero/Protocol lockup became too close to the reference and created brand-copy risk.
+  Evidence: The user said it was copied one-to-one and asked to redo it before it could cause problems.
 
 ## Decision Log
 
@@ -42,9 +54,21 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
   Rationale: The admin-managed settings should continue to work, while the empty/default state should still feel like Protocol with a large glowing zero.
   Date/Author: 2026-07-03 / Codex
 
+- Decision: Use a generated `webapp/assets/protocol-compass-hero.png` as the default hero image.
+  Rationale: The compass directly communicates control, direction, and life management while matching the dark premium reference more closely than the previous abstract scene.
+  Date/Author: 2026-07-03 / Codex
+
+- Decision: Reinterpret the compass as a glowing `0` protocol sigil instead of a physical object.
+  Rationale: References 1 and 2 rely on a symbolic black-and-white Protocol mark, so the hero should feel like a brand emblem rather than a product photo.
+  Date/Author: 2026-07-03 / Codex
+
+- Decision: Move from a zero-shaped sigil to an asymmetric vector/compass emblem.
+  Rationale: The new mark keeps the ideas of control, direction, and discipline but uses a different silhouette, layout, and vocabulary so it does not copy the provided references.
+  Date/Author: 2026-07-03 / Codex
+
 ## Outcomes & Retrospective
 
-Implemented a frontend-only Protocol visual refresh. The landing screen now has a stronger brand bar, large dark hero, quieter product tabs, a heavier product card, and a search field closer to the references. The module screen is now a dark course menu with a close button and large stage rows. Lesson text received a calmer long-read treatment while preserving blocks, media, navigation, and highlight behavior.
+Implemented a frontend-only Protocol visual refresh. The landing screen now has a stronger brand bar, a dark compass hero, quieter product tabs, a heavier product card, and a search field closer to the references. The module screen is now a dark course menu with a close button and large stage rows. Lesson text received a calmer long-read treatment while preserving blocks, media, navigation, and highlight behavior.
 
 ## Context and Orientation
 
@@ -94,3 +118,9 @@ No new external dependencies are required. Existing backend endpoints and localS
 Revision note: Created this ExecPlan to guide the Protocol-inspired Mini App visual refresh requested with reference screenshots.
 
 Revision note: Completed the frontend-only visual refresh and validation. The work changed only `webapp/app.js`, `webapp/style.css`, and this plan.
+
+Revision note: Replaced the default hero asset with a generated close-up compass and reduced the hero image height because the previous image felt too large and too far from the user's second reference.
+
+Revision note: Replaced the physical compass asset with a glowing zero/compass sigil to move the hero back toward the user's first and second references.
+
+Revision note: Replaced the zero/Protocol-like hero with an original vector/compass emblem and changed the default hero wording to "ВЕКТОР" with a control/focus/action kicker because the previous direction was too close to the reference.
