@@ -9,7 +9,6 @@ const backButton = document.querySelector("#backButton");
 const topbar = document.querySelector(".topbar");
 const MINI_APP_DARK_COLOR = "#0b0d0f";
 const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
-let pendingHighlightSelection = null;
 
 const DEFAULT_COURSE_LANDING_CONFIG = {
   brandTitle: "Протокол 0.",
@@ -55,12 +54,6 @@ const state = {
   currentModuleId: null,
   currentLessonId: null,
   currentBlocks: [],
-  activeHighlight: null,
-  selectionToolbar: null,
-  copyNotice: null,
-  copyNoticeTimer: null,
-  highlightMode: false,
-  highlightStartToken: null,
 };
 
 function setHeader(label, title, subtitle) {
@@ -144,73 +137,6 @@ function saveLastLessonProgress(moduleId, lesson) {
   localStorage.setItem(LAST_LESSON_STORAGE_KEYS.openedAt, new Date().toISOString());
 }
 
-function getElementFromNode(node) {
-  if (!node) {
-    return null;
-  }
-  return node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-}
-
-function getLessonElementFromTarget(target) {
-  return getElementFromNode(target)?.closest?.(".lesson") || null;
-}
-
-function isSelectionInsideLesson() {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    return false;
-  }
-  const range = selection.getRangeAt(0);
-  return Boolean(getLessonElementFromTarget(range.commonAncestorContainer));
-}
-
-function showCopyNotice(message = "Копирование отключено") {
-  if (!state.copyNotice) {
-    state.copyNotice = document.createElement("div");
-    state.copyNotice.className = "copy-notice";
-    state.copyNotice.setAttribute("role", "status");
-    state.copyNotice.setAttribute("aria-live", "polite");
-    document.body.append(state.copyNotice);
-  }
-
-  state.copyNotice.textContent = message;
-  state.copyNotice.hidden = false;
-  state.copyNotice.classList.add("is-visible");
-
-  window.clearTimeout(state.copyNoticeTimer);
-  state.copyNoticeTimer = window.setTimeout(() => {
-    state.copyNotice?.classList.remove("is-visible");
-    state.copyNoticeTimer = window.setTimeout(() => {
-      if (state.copyNotice) {
-        state.copyNotice.hidden = true;
-      }
-    }, 180);
-  }, 1600);
-}
-
-function blockProtectedLessonEvent(event) {
-  if (getLessonElementFromTarget(event.target) || isSelectionInsideLesson()) {
-    event.preventDefault();
-    showCopyNotice();
-    return true;
-  }
-  return false;
-}
-
-function handleProtectedDragStart(event) {
-  return blockProtectedLessonEvent(event);
-}
-
-function handleProtectedKeydown(event) {
-  const key = event.key.toLowerCase();
-  if ((event.ctrlKey || event.metaKey) && (key === "c" || key === "x" || key === "a")) {
-    if (!blockProtectedLessonEvent(event) && state.currentLessonId !== null) {
-      event.preventDefault();
-      showCopyNotice();
-    }
-  }
-}
-
 function getHighlightStorageKey(lessonId) {
   return `lesson_highlights_${lessonId}`;
 }
@@ -254,17 +180,6 @@ function readLessonHighlights(lessonId = state.currentLessonId) {
   }
 }
 
-function writeLessonHighlights(highlights, lessonId = state.currentLessonId) {
-  if (lessonId === null || lessonId === undefined) {
-    return;
-  }
-  try {
-    localStorage.setItem(getHighlightStorageKey(lessonId), JSON.stringify(highlights));
-  } catch {
-    showCopyNotice("Не удалось сохранить выделение");
-  }
-}
-
 function getBlockHighlights(blockId, textLength) {
   const blockHighlights = readLessonHighlights()
     .filter((highlight) => highlight.blockId === String(blockId))
@@ -289,94 +204,31 @@ function getBlockStorageId(block, index = 0) {
   return `legacy-${index}`;
 }
 
-function trimHighlightRange(rawText, startOffset, endOffset) {
-  let start = Math.min(startOffset, endOffset);
-  let end = Math.max(startOffset, endOffset);
-
-  while (start < end && /\s/.test(rawText[start])) {
-    start += 1;
-  }
-  while (end > start && /\s/.test(rawText[end - 1])) {
-    end -= 1;
-  }
-
-  const selectedText = rawText.slice(start, end);
-  if (!selectedText || !selectedText.trim()) {
-    return null;
-  }
-
-  return {
-    startOffset: start,
-    endOffset: end,
-    selectedText,
-  };
-}
-
-function getCurrentTextBlockById(blockId) {
-  return state.currentBlocks.find((item) => item.highlightBlockId === String(blockId)) || null;
-}
-
-function findHighlightForToken(highlights, startOffset, endOffset) {
-  return highlights.find(
-    (highlight) => highlight.startOffset < endOffset && highlight.endOffset > startOffset
-  ) || null;
-}
-
-function renderTextBlockWithHighlights(blockElement, rawText, highlights) {
+function renderTextBlockWithHighlights(blockElement, rawText) {
   blockElement.replaceChildren();
-  const safeHighlights = [...highlights]
-    .filter(
-      (highlight) =>
-        HIGHLIGHT_COLORS.includes(highlight.color) &&
-        highlight.startOffset >= 0 &&
-        highlight.endOffset > highlight.startOffset &&
-        highlight.endOffset <= rawText.length
-    )
-    .sort((left, right) => left.startOffset - right.startOffset || left.endOffset - right.endOffset);
-
   const paragraph = document.createElement("p");
   paragraph.className = "lesson-text-content";
-  const tokenPattern = /\S+|\s+/g;
-  let match = tokenPattern.exec(rawText);
+  let cursor = 0;
 
-  while (match) {
-    const tokenText = match[0];
-    const startOffset = match.index;
-    const endOffset = startOffset + tokenText.length;
-
-    if (!tokenText.trim()) {
-      paragraph.append(document.createTextNode(tokenText));
-      match = tokenPattern.exec(rawText);
-      continue;
+  getBlockHighlights(blockElement.dataset.blockId, rawText.length).forEach((highlight) => {
+    if (highlight.startOffset > cursor) {
+      paragraph.append(document.createTextNode(rawText.slice(cursor, highlight.startOffset)));
     }
 
-    const token = document.createElement("span");
-    token.className = "hl-token";
-    token.dataset.blockId = String(blockElement.dataset.blockId);
-    token.dataset.start = String(startOffset);
-    token.dataset.end = String(endOffset);
-    token.textContent = tokenText;
+    const mark = document.createElement("mark");
+    mark.className = `highlight highlight-${highlight.color}`;
+    mark.dataset.highlightId = highlight.id;
+    mark.dataset.blockId = String(blockElement.dataset.blockId);
+    mark.dataset.startOffset = String(highlight.startOffset);
+    mark.dataset.endOffset = String(highlight.endOffset);
+    mark.dataset.color = highlight.color;
+    mark.textContent = rawText.slice(highlight.startOffset, highlight.endOffset);
+    paragraph.append(mark);
+    cursor = highlight.endOffset;
+  });
 
-    const tokenHighlight = findHighlightForToken(safeHighlights, startOffset, endOffset);
-    if (tokenHighlight) {
-      token.classList.add("highlight", `highlight-${tokenHighlight.color}`);
-      token.dataset.highlightId = tokenHighlight.id;
-      token.dataset.startOffset = String(tokenHighlight.startOffset);
-      token.dataset.endOffset = String(tokenHighlight.endOffset);
-      token.dataset.color = tokenHighlight.color;
-    }
-
-    if (
-      state.highlightStartToken &&
-      state.highlightStartToken.blockId === String(blockElement.dataset.blockId) &&
-      state.highlightStartToken.startOffset === startOffset &&
-      state.highlightStartToken.endOffset === endOffset
-    ) {
-      token.classList.add("is-highlight-start");
-    }
-
-    paragraph.append(token);
-    match = tokenPattern.exec(rawText);
+  if (cursor < rawText.length) {
+    paragraph.append(document.createTextNode(rawText.slice(cursor)));
   }
 
   blockElement.append(paragraph);
@@ -384,283 +236,7 @@ function renderTextBlockWithHighlights(blockElement, rawText, highlights) {
 
 function renderTextBlockContent(blockElement, block) {
   const rawText = block.rawText ?? String(block.content || "");
-  const highlights = getBlockHighlights(block.highlightBlockId || getBlockStorageId(block), rawText.length);
-  renderTextBlockWithHighlights(blockElement, rawText, highlights);
-}
-
-function rerenderLessonTextBlocks() {
-  document.querySelectorAll(".lesson-text-block").forEach((blockElement) => {
-    const block = state.currentBlocks.find((item) => item.highlightBlockId === blockElement.dataset.blockId);
-    if (block) {
-      renderTextBlockContent(blockElement, block);
-    }
-  });
-}
-
-function hideSelectionToolbar() {
-  state.activeHighlight = null;
-  pendingHighlightSelection = null;
-  if (state.selectionToolbar) {
-    state.selectionToolbar.hidden = true;
-  }
-}
-
-function protectToolbarPointer(event) {
-  event.preventDefault();
-  event.stopPropagation();
-}
-
-function positionToolbar(rect) {
-  const toolbar = ensureSelectionToolbar();
-  toolbar.hidden = false;
-  const margin = 10;
-  const toolbarRect = toolbar.getBoundingClientRect();
-  const left = Math.min(
-    Math.max(margin, rect.left + rect.width / 2 - toolbarRect.width / 2),
-    window.innerWidth - toolbarRect.width - margin
-  );
-  const top = rect.top > toolbarRect.height + margin * 2
-    ? rect.top - toolbarRect.height - margin
-    : rect.bottom + margin;
-
-  toolbar.style.left = `${left}px`;
-  toolbar.style.top = `${Math.min(Math.max(margin, top), window.innerHeight - toolbarRect.height - margin)}px`;
-}
-
-function syncHighlightModeUi() {
-  content.classList.toggle("is-highlight-mode", state.highlightMode);
-  const button = document.querySelector(".highlight-mode-button");
-  const hint = document.querySelector(".highlight-mode-hint");
-  if (button) {
-    button.textContent = state.highlightMode ? "Готово" : "Выделить текст";
-    button.setAttribute("aria-pressed", String(state.highlightMode));
-  }
-  if (hint) {
-    hint.textContent = state.highlightMode
-      ? "Тапните первое слово, затем последнее слово фразы."
-      : "Включите режим, чтобы подсветить фразу без системного выделения.";
-  }
-}
-
-function resetHighlightPicking() {
-  state.highlightStartToken = null;
-  pendingHighlightSelection = null;
-}
-
-function toggleHighlightMode() {
-  state.highlightMode = !state.highlightMode;
-  resetHighlightPicking();
-  hideSelectionToolbar();
-  syncHighlightModeUi();
-  rerenderLessonTextBlocks();
-}
-
-function createHighlightTools() {
-  const wrapper = document.createElement("div");
-  wrapper.className = "lesson-tools";
-
-  const button = document.createElement("button");
-  button.className = "highlight-mode-button";
-  button.type = "button";
-  button.addEventListener("click", toggleHighlightMode);
-
-  const hint = document.createElement("p");
-  hint.className = "highlight-mode-hint";
-
-  wrapper.append(button, hint);
-  button.textContent = state.highlightMode ? "Готово" : "Выделить текст";
-  button.setAttribute("aria-pressed", String(state.highlightMode));
-  hint.textContent = state.highlightMode
-    ? "Тапните первое слово, затем последнее слово фразы."
-    : "Включите режим, чтобы подсветить фразу без системного выделения.";
-  return wrapper;
-}
-
-function handleTokenHighlightTap(tokenElement) {
-  if (!state.highlightMode) {
-    return false;
-  }
-
-  const blockId = tokenElement.dataset.blockId;
-  const tokenStart = Number(tokenElement.dataset.start);
-  const tokenEnd = Number(tokenElement.dataset.end);
-  const block = getCurrentTextBlockById(blockId);
-
-  if (!block || !Number.isInteger(tokenStart) || !Number.isInteger(tokenEnd) || tokenEnd <= tokenStart) {
-    return true;
-  }
-
-  if (!state.highlightStartToken || state.highlightStartToken.blockId !== blockId) {
-    state.highlightStartToken = {
-      blockId,
-      startOffset: tokenStart,
-      endOffset: tokenEnd,
-    };
-    pendingHighlightSelection = null;
-    rerenderLessonTextBlocks();
-    showCopyNotice("Выберите последнее слово");
-    return true;
-  }
-
-  const rawText = block.rawText ?? String(block.content || "");
-  const rangeStart = Math.min(state.highlightStartToken.startOffset, tokenStart);
-  const rangeEnd = Math.max(state.highlightStartToken.endOffset, tokenEnd);
-  const selection = trimHighlightRange(rawText, rangeStart, rangeEnd);
-  resetHighlightPicking();
-
-  if (!selection) {
-    hideSelectionToolbar();
-    rerenderLessonTextBlocks();
-    return true;
-  }
-
-  pendingHighlightSelection = {
-    lessonId: state.currentLessonId,
-    blockId,
-    ...selection,
-  };
-  rerenderLessonTextBlocks();
-  state.activeHighlight = null;
-  setToolbarMode("selection");
-  positionToolbar(tokenElement.getBoundingClientRect());
-  return true;
-}
-
-function setToolbarMode(mode) {
-  const toolbar = ensureSelectionToolbar();
-  toolbar.dataset.mode = mode;
-  toolbar.querySelector(".selection-toolbar-remove").hidden = mode !== "highlight";
-}
-
-function ensureSelectionToolbar() {
-  if (state.selectionToolbar) {
-    return state.selectionToolbar;
-  }
-
-  const toolbar = document.createElement("div");
-  toolbar.className = "selection-toolbar";
-  toolbar.hidden = true;
-
-  HIGHLIGHT_COLORS.forEach((color) => {
-    const button = document.createElement("button");
-    button.className = `selection-color selection-color-${color}`;
-    button.type = "button";
-    button.dataset.color = color;
-    button.setAttribute("aria-label", `Выделить цветом: ${color}`);
-    button.addEventListener("pointerdown", protectToolbarPointer);
-    button.addEventListener("mousedown", protectToolbarPointer);
-    button.addEventListener("touchstart", protectToolbarPointer, { passive: false });
-    button.addEventListener("pointerup", (event) => {
-      protectToolbarPointer(event);
-      applyHighlightColor(color);
-    });
-    button.addEventListener("touchend", (event) => {
-      protectToolbarPointer(event);
-      applyHighlightColor(color);
-    }, { passive: false });
-    button.addEventListener("click", () => applyHighlightColor(color));
-    toolbar.append(button);
-  });
-
-  const removeButton = document.createElement("button");
-  removeButton.className = "selection-toolbar-remove";
-  removeButton.type = "button";
-  removeButton.textContent = "×";
-  removeButton.title = "Убрать выделение";
-  removeButton.setAttribute("aria-label", "Убрать выделение");
-  removeButton.hidden = true;
-  removeButton.addEventListener("pointerdown", protectToolbarPointer);
-  removeButton.addEventListener("mousedown", protectToolbarPointer);
-  removeButton.addEventListener("touchstart", protectToolbarPointer, { passive: false });
-  removeButton.addEventListener("pointerup", (event) => {
-    protectToolbarPointer(event);
-    removeActiveHighlight();
-  });
-  removeButton.addEventListener("touchend", (event) => {
-    protectToolbarPointer(event);
-    removeActiveHighlight();
-  }, { passive: false });
-  removeButton.addEventListener("click", removeActiveHighlight);
-  toolbar.append(removeButton);
-
-  document.body.append(toolbar);
-  state.selectionToolbar = toolbar;
-  return toolbar;
-}
-
-function applyHighlightColor(color) {
-  if (!HIGHLIGHT_COLORS.includes(color)) {
-    return;
-  }
-
-  const highlights = readLessonHighlights();
-  if (state.activeHighlight) {
-    const updated = highlights.map((highlight) =>
-      highlight.id === state.activeHighlight.id ? { ...highlight, color } : highlight
-    );
-    writeLessonHighlights(updated);
-  } else if (pendingHighlightSelection) {
-    const selection = pendingHighlightSelection;
-    const block = getCurrentTextBlockById(selection.blockId);
-    const rawText = block?.rawText ?? String(block?.content || "");
-    const trimmedSelection = trimHighlightRange(rawText, selection.startOffset, selection.endOffset);
-
-    if (!selection.blockId || !trimmedSelection) {
-      hideSelectionToolbar();
-      return;
-    }
-    const nextHighlight = {
-      id: makeHighlightId(),
-      blockId: String(selection.blockId),
-      startOffset: trimmedSelection.startOffset,
-      endOffset: trimmedSelection.endOffset,
-      color,
-    };
-    const withoutOverlaps = highlights.filter(
-      (highlight) =>
-        highlight.blockId !== nextHighlight.blockId ||
-        highlight.endOffset <= nextHighlight.startOffset ||
-        highlight.startOffset >= nextHighlight.endOffset
-    );
-    writeLessonHighlights([...withoutOverlaps, nextHighlight]);
-  }
-
-  window.getSelection()?.removeAllRanges();
-  hideSelectionToolbar();
-  rerenderLessonTextBlocks();
-}
-
-function showToolbarForHighlight(highlightElement) {
-  const highlights = readLessonHighlights();
-  const highlight = highlights.find(
-    (item) =>
-      item.id === highlightElement.dataset.highlightId ||
-      (
-        item.blockId === highlightElement.dataset.blockId &&
-        item.startOffset === Number(highlightElement.dataset.startOffset) &&
-        item.endOffset === Number(highlightElement.dataset.endOffset) &&
-        item.color === highlightElement.dataset.color
-      )
-  );
-  if (!highlight) {
-    return;
-  }
-
-  pendingHighlightSelection = null;
-  state.activeHighlight = highlight;
-  window.getSelection()?.removeAllRanges();
-  setToolbarMode("highlight");
-  positionToolbar(highlightElement.getBoundingClientRect());
-}
-
-function removeActiveHighlight() {
-  if (!state.activeHighlight) {
-    return;
-  }
-  const updated = readLessonHighlights().filter((highlight) => highlight.id !== state.activeHighlight.id);
-  writeLessonHighlights(updated);
-  hideSelectionToolbar();
-  rerenderLessonTextBlocks();
+  renderTextBlockWithHighlights(blockElement, rawText);
 }
 
 function showMessage(title, message, actionLabel = "", action = null) {
@@ -959,7 +535,6 @@ async function continueCourseFromLanding() {
 }
 
 function renderLandingScreen() {
-  hideSelectionToolbar();
   state.currentModuleId = null;
   state.currentLessonId = null;
   state.currentBlocks = [];
@@ -1128,7 +703,6 @@ function renderModuleSteps(resetLessonState = true) {
     state.currentLessonId = null;
     state.currentBlocks = [];
   }
-  hideSelectionToolbar();
   content.className = "content course-steps";
   content.replaceChildren();
   setCourseHeaderVisible(false);
@@ -1268,9 +842,6 @@ async function renderLesson(moduleId, lessonId) {
   state.currentModuleId = moduleId;
   state.currentLessonId = lessonId;
   state.currentBlocks = [];
-  state.highlightMode = false;
-  resetHighlightPicking();
-  hideSelectionToolbar();
   content.className = "content";
   content.replaceChildren();
   setHeader(module?.title || "Урок", "Загрузка урока…", "Подождите несколько секунд.");
@@ -1326,8 +897,7 @@ async function renderLesson(moduleId, lessonId) {
       navigation.append(nextButton);
     }
 
-    content.append(createHighlightTools(), article);
-    syncHighlightModeUi();
+    content.append(article);
     if (navigation.children.length > 0) {
       content.append(navigation);
     }
@@ -1341,45 +911,12 @@ function goBack() {
   state.currentModuleId = null;
   state.currentLessonId = null;
   state.currentBlocks = [];
-  state.highlightMode = false;
-  resetHighlightPicking();
-  hideSelectionToolbar();
   renderModuleSteps();
 }
 
 backButton.addEventListener("click", goBack);
 telegram?.BackButton?.onClick(goBack);
 configureTelegramWebApp();
-
-document.addEventListener("copy", blockProtectedLessonEvent);
-document.addEventListener("cut", blockProtectedLessonEvent);
-document.addEventListener("contextmenu", blockProtectedLessonEvent);
-document.addEventListener("selectstart", blockProtectedLessonEvent);
-document.addEventListener("dragstart", handleProtectedDragStart);
-document.addEventListener("keydown", handleProtectedKeydown);
-document.addEventListener("scroll", hideSelectionToolbar, true);
-document.addEventListener("click", (event) => {
-  if (event.target.closest?.(".selection-toolbar")) {
-    return;
-  }
-
-  const token = event.target.closest?.(".hl-token");
-  if (token?.closest?.(".lesson-text-block") && state.highlightMode) {
-    event.preventDefault();
-    event.stopPropagation();
-    handleTokenHighlightTap(token);
-    return;
-  }
-
-  const highlight = event.target.closest?.(".highlight");
-  if (highlight?.closest?.(".lesson-text-block")) {
-    event.preventDefault();
-    showToolbarForHighlight(highlight);
-    return;
-  }
-
-  hideSelectionToolbar();
-});
 
 async function renderApp() {
   try {
