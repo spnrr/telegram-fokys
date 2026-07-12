@@ -21,6 +21,7 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 - [x] (2026-07-03 18:25Z) Audited all main frontend surfaces through the `frontend-design`, `ui-ux-pro-max`, and `taste-skill` lenses before editing.
 - [x] (2026-07-03 18:25Z) Unified course, lesson, admin, and Protocol Day surfaces around darker shared tokens, calmer radii, stronger CTA contrast, and more readable long-form text.
 - [x] (2026-07-03 18:25Z) Removed a non-functional landing profile button and added a frontend-only "Правила" tab to Protocol Day.
+- [x] (2026-07-12 00:00Z) Simplified the product entry screen and the course module menu into a mobile-first single-purpose interface without changing the API or navigation behavior.
 
 ## Surprises & Discoveries
 
@@ -44,6 +45,9 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 
 - Observation: The Protocol Day tabs referenced by the user included "Правила", but the frontend only rendered "Протокол", "Дела", and "Статистика".
   Evidence: `renderTabs` in `webapp/tasks/app.js` contained three tab entries before this pass.
+
+- Observation: The product entry screen repeated the same course identity through several competing blocks.
+  Evidence: `renderLandingScreen` contained a header, hero, product section title, static tabs, image card, search control, extra module button, and footer before the 2026-07-12 revision.
 
 ## Decision Log
 
@@ -83,11 +87,17 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
   Rationale: The user asked not to break backend or deployment, and the rules are stable product copy that does not need storage yet.
   Date/Author: 2026-07-03 / Codex
 
+- Decision: Reduce the product entry screen to one product surface and one primary action.
+  Rationale: The previous landing screen repeated the product identity across a header, hero, tabs, image card, search field, and footer. The requested premium direction needs hierarchy through spacing and typography instead of duplicated content.
+  Date/Author: 2026-07-12 / Codex
+
 ## Outcomes & Retrospective
 
 Implemented a frontend-only Protocol visual refresh. The landing screen now has a stronger brand bar, a dark compass hero, quieter product tabs, a heavier product card, and a search field closer to the references. The module screen is now a dark course menu with a close button and large stage rows. Lesson text received a calmer long-read treatment while preserving blocks, media, navigation, and highlight behavior.
 
 The 2026-07-03 audit pass unified the broader frontend: course lesson text is now easier to read, the landing CTA has clear contrast, the empty profile-like header action was removed, the admin panel now shares the dark material system, and Protocol Day has more consistent surfaces plus a new Rules tab.
+
+The 2026-07-12 product revision reduced the entry experience to one product panel: title, description, current progress, price, and one wide continue button. The module menu keeps its existing expand-and-open behavior but now uses one calm dark background with sparse dividers instead of a nested card surface.
 
 ## Context and Orientation
 
@@ -156,3 +166,5 @@ Revision note: Replaced the physical compass asset with a glowing zero/compass s
 Revision note: Replaced the zero/Protocol-like hero with an original vector/compass emblem and changed the default hero wording to "ВЕКТОР" with a control/focus/action kicker because the previous direction was too close to the reference.
 
 Revision note: Added a full frontend UX/UI audit pass and implemented Priority 1 polish across course, lessons, admin, and Protocol Day while preserving backend, Railway startup, bot behavior, lessons, and highlight logic.
+
+Revision note: Simplified the product and module screens for the 2026-07-12 dark premium mobile refresh. Removed the hero, static product tabs, search, footer, extra module button, and redundant product imagery from the landing render while retaining the existing continue behavior and module navigation.

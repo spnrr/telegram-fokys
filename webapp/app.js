@@ -457,87 +457,8 @@ function renderLandingScreen() {
   const shell = document.createElement("section");
   shell.className = "landing-shell";
 
-  const header = document.createElement("header");
-  header.className = "landing-header";
-
-  const brand = document.createElement("div");
-  brand.className = "landing-brand";
-
-  const logo = document.createElement("div");
-  logo.className = "landing-logo";
-  logo.textContent = "0";
-
-  const brandText = document.createElement("div");
-  const brandTitle = document.createElement("strong");
-  brandTitle.textContent = courseLandingConfig.brandTitle;
-  const brandSubtitle = document.createElement("span");
-  brandSubtitle.textContent = courseLandingConfig.brandSubtitle;
-  brandText.append(brandTitle, brandSubtitle);
-  brand.append(logo, brandText);
-
-  const headerActions = document.createElement("div");
-  headerActions.className = "landing-header-actions";
-
-  const menuButton = document.createElement("button");
-  menuButton.className = "landing-icon-button";
-  menuButton.type = "button";
-  menuButton.setAttribute("aria-label", "Меню курса");
-  menuButton.textContent = "☰";
-  menuButton.addEventListener("click", () => {
-    showModulesScreen().catch((error) => {
-      showMessage("Не удалось загрузить ступени", error.message, "Повторить", showModulesScreen);
-    });
-  });
-
-  headerActions.append(menuButton);
-  header.append(brand, headerActions);
-
-  const hero = document.createElement("section");
-  hero.className = "landing-hero";
-  const heroImage = createLandingImage(
-    courseLandingConfig.heroImageUrl,
-    "landing-hero-image",
-    "0"
-  );
-
-  const heroCopy = document.createElement("div");
-  heroCopy.className = "landing-hero-copy";
-  const heroDisplayCopy = getHeroDisplayCopy();
-  const heroKicker = document.createElement("span");
-  heroKicker.textContent = heroDisplayCopy.kicker;
-  const heroTitle = document.createElement("h2");
-  heroTitle.textContent = heroDisplayCopy.title;
-  const heroDescription = document.createElement("p");
-  heroDescription.textContent = heroDisplayCopy.description;
-  heroCopy.append(heroKicker, heroTitle, heroDescription);
-  hero.append(heroImage, heroCopy);
-
-  const products = document.createElement("section");
-  products.className = "landing-products";
-
-  const productsTitle = document.createElement("h2");
-  productsTitle.textContent = "Продукты";
-
-  const tabs = document.createElement("div");
-  tabs.className = "landing-tabs";
-  const ownTab = document.createElement("button");
-  ownTab.type = "button";
-  ownTab.className = "landing-tab is-active";
-  ownTab.textContent = "Ваши продукты";
-  const allTab = document.createElement("button");
-  allTab.type = "button";
-  allTab.className = "landing-tab";
-  allTab.textContent = "Все продукты";
-  tabs.append(ownTab, allTab);
-
   const productCard = document.createElement("article");
   productCard.className = "landing-product-card";
-
-  const productImage = createLandingImage(
-    courseLandingConfig.productImageUrl,
-    "landing-product-image",
-    courseLandingConfig.productTitle
-  );
 
   const productBody = document.createElement("div");
   productBody.className = "landing-product-body";
@@ -565,44 +486,15 @@ function renderLandingScreen() {
   continueButton.textContent = courseLandingConfig.continueButtonText;
   continueButton.addEventListener("click", () => {
     continueCourseFromLanding().catch((error) => {
-      showMessage("Не удалось продолжить", error.message, "Все ступени", showModulesScreen);
+      showMessage("Не удалось продолжить", error.message, "Повторить", continueCourseFromLanding);
     });
   });
 
   productMeta.append(price, continueButton);
   productBody.append(productTitle, productDescription, progress, productMeta);
-  productCard.append(productImage, productBody);
+  productCard.append(productBody);
 
-  const search = document.createElement("label");
-  search.className = "landing-search";
-  const searchInput = document.createElement("input");
-  searchInput.type = "search";
-  searchInput.placeholder = courseLandingConfig.searchPlaceholder;
-  search.append(searchInput);
-
-  const allStepsButton = document.createElement("button");
-  allStepsButton.className = "landing-all-steps";
-  allStepsButton.type = "button";
-  allStepsButton.textContent = "Все ступени";
-  allStepsButton.addEventListener("click", () => {
-    showModulesScreen().catch((error) => {
-      showMessage("Не удалось загрузить ступени", error.message, "Повторить", showModulesScreen);
-    });
-  });
-
-  products.append(productsTitle, tabs, productCard, search, allStepsButton);
-
-  const footer = document.createElement("footer");
-  footer.className = "landing-footer";
-  footer.append(
-    document.createTextNode(courseLandingConfig.authorName),
-    document.createElement("span"),
-    document.createTextNode("Политика конфиденциальности"),
-    document.createElement("span"),
-    document.createTextNode("Договор оферты")
-  );
-
-  shell.append(header, hero, products, footer);
+  shell.append(productCard);
   content.append(shell);
 }
 
@@ -638,13 +530,10 @@ function renderModuleSteps(resetLessonState = true) {
   const menuTitle = document.createElement("div");
   menuTitle.className = "course-menu-title";
 
-  const menuLabel = document.createElement("span");
-  menuLabel.textContent = "Курс";
-
   const menuName = document.createElement("strong");
   menuName.textContent = courseLandingConfig.productTitle || "Протокол 0.";
 
-  menuTitle.append(menuLabel, menuName);
+  menuTitle.append(menuName);
   menuIntro.append(closeMenu, menuTitle);
   content.append(menuIntro);
 

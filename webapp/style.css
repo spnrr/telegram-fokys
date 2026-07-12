@@ -987,370 +987,163 @@ body.mini-app .landing-screen {
 }
 
 body.mini-app .landing-shell {
-  display: grid;
-  gap: 24px;
-}
-
-body.mini-app .landing-header,
-body.mini-app .landing-product-meta,
-body.mini-app .landing-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-body.mini-app .landing-header {
-  min-height: 76px;
-  padding: 12px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.045);
-  border-radius: 24px;
-  background: #20242c;
-}
-
-body.mini-app .landing-brand {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-}
-
-body.mini-app .landing-logo {
-  display: grid;
-  width: 54px;
-  height: 54px;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  background:
-    radial-gradient(circle, rgba(255, 255, 255, 0.18), transparent 44%),
-    #050607;
-  color: var(--text);
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 2rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
-}
-
-body.mini-app .landing-brand strong,
-body.mini-app .landing-brand span {
-  display: block;
-}
-
-body.mini-app .landing-brand strong {
-  color: var(--text);
-  font-size: clamp(1.55rem, 6vw, 2.2rem);
-  font-weight: 620;
-  line-height: 1.2;
-  letter-spacing: -0.035em;
-}
-
-body.mini-app .landing-brand span,
-body.mini-app .landing-header-badge,
-body.mini-app .landing-footer {
-  color: var(--muted-2);
-  font-size: 0.76rem;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-}
-
-body.mini-app .landing-header-badge {
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-body.mini-app .landing-header-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-body.mini-app .landing-icon-button {
-  display: grid;
-  width: 46px;
-  height: 46px;
-  place-items: center;
-  border: 0;
-  border-radius: 16px;
-  background: transparent;
-  color: #aeb4bf;
-  font-size: 1.75rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-body.mini-app .landing-hero {
-  position: relative;
-  overflow: hidden;
-  border: 0;
-  border-radius: 0 0 30px 30px;
-  background:
-    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.1), transparent 28%),
-    #030405;
-  box-shadow: none;
-}
-
-body.mini-app .landing-hero-image {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1 / 1.18;
-  max-height: min(520px, 64vh);
-  min-height: 0;
-  overflow: hidden;
-  background: #030405;
-}
-
-body.mini-app .landing-hero-image img,
-body.mini-app .landing-product-image img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 48%;
-  filter: grayscale(1) contrast(1.08) brightness(0.74);
-}
-
-body.mini-app .landing-hero-image img {
-  object-fit: contain;
-  object-position: center;
-  filter: grayscale(1) contrast(1.12) brightness(0.82);
-}
-
-body.mini-app .landing-image-placeholder {
-  display: grid;
-  height: 100%;
-  min-height: 280px;
-  place-items: center;
-  padding: 34px 22px;
-  background:
-    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.18), transparent 18%),
-    repeating-radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 13px),
-    #030405;
-  color: var(--text);
-  text-align: center;
-}
-
-body.mini-app .landing-image-placeholder span {
-  color: var(--muted-2);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.22em;
-}
-
-body.mini-app .landing-image-placeholder strong {
-  margin-top: 8px;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(4.8rem, 36vw, 12rem);
-  font-weight: 400;
-  letter-spacing: -0.08em;
-  text-transform: uppercase;
-  text-shadow: 0 0 30px rgba(255, 255, 255, 0.34);
-}
-
-body.mini-app .landing-hero-copy {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 0 24px 24px;
-  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.82) 62%, #030405);
-  text-align: center;
-  pointer-events: none;
-}
-
-body.mini-app .landing-hero-copy span {
-  color: var(--muted-2);
-  font-size: 0.68rem;
-  font-weight: 850;
-  letter-spacing: 0.42em;
-}
-
-body.mini-app .landing-hero-copy h2,
-body.mini-app .landing-products h2,
-body.mini-app .landing-product-body h3 {
-  margin: 0;
-  color: var(--text);
-}
-
-body.mini-app .landing-hero-copy h2 {
-  margin-top: 9px;
-  font-size: clamp(2.1rem, 10vw, 4.4rem);
-  line-height: 0.92;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-}
-
-body.mini-app .landing-hero-copy p,
-body.mini-app .landing-product-body p {
-  color: var(--muted);
-  line-height: 1.55;
-}
-
-body.mini-app .landing-hero-copy p {
-  max-width: 360px;
-  margin: 14px auto 0;
-  font-size: clamp(0.96rem, 3.6vw, 1.15rem);
-}
-
-body.mini-app .landing-products {
-  display: grid;
-  gap: 22px;
-  padding: 0 2px;
-}
-
-body.mini-app .landing-products h2 {
-  font-size: clamp(1.6rem, 6vw, 2.3rem);
-  letter-spacing: -0.04em;
-}
-
-body.mini-app .landing-tabs {
-  display: flex;
-  gap: 34px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-body.mini-app .landing-tab {
-  flex: 0 0 auto;
-  min-height: 40px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  cursor: default;
-}
-
-body.mini-app .landing-tab.is-active {
-  background: transparent;
-  color: var(--text);
+  width: min(100%, 640px);
+  margin: clamp(12px, 8vh, 72px) auto 0;
 }
 
 body.mini-app .landing-product-card {
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.075);
-  border-radius: 28px;
-  background: #20242c;
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.34);
-}
-
-body.mini-app .landing-product-image {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: 260px;
-  min-height: 0;
-  overflow: hidden;
-  background: #08090b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  background: #161a1f;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
 body.mini-app .landing-product-body {
   display: grid;
-  gap: 14px;
-  padding: clamp(24px, 6vw, 42px);
+  gap: 20px;
+  padding: clamp(30px, 8vw, 56px);
 }
 
 body.mini-app .landing-product-body h3 {
+  margin: 0;
+  color: var(--text);
   font-size: clamp(2rem, 9vw, 3.2rem);
-  line-height: 1.02;
-  letter-spacing: -0.055em;
+  font-weight: 680;
+  line-height: 1.04;
+  letter-spacing: -0.05em;
 }
 
 body.mini-app .landing-product-body p {
   margin: 0;
+  color: var(--muted);
+  font-size: clamp(1rem, 3.8vw, 1.15rem);
+  line-height: 1.58;
 }
 
 body.mini-app .landing-product-progress {
-  color: var(--text) !important;
-  font-weight: 620;
+  padding-top: 4px;
+  color: var(--muted) !important;
+  font-size: 0.95rem !important;
+  font-weight: 560;
 }
 
 body.mini-app .landing-product-meta {
   display: grid;
-  gap: 18px;
+  gap: 20px;
   align-items: stretch;
-  padding-top: 22px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 26px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 body.mini-app .landing-product-meta span {
   color: var(--text);
-  font-size: clamp(2rem, 8vw, 3.35rem);
-  font-weight: 850;
-  letter-spacing: -0.06em;
-}
-
-body.mini-app .landing-continue-button,
-body.mini-app .landing-all-steps {
-  min-height: 48px;
-  border: 0;
-  border-radius: 16px;
-  font-weight: 800;
-  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 body.mini-app .landing-continue-button {
   width: 100%;
-  min-height: 66px;
-  padding: 0 20px;
+  min-height: 60px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 18px;
   background: var(--text);
   color: var(--bg);
+  font-weight: 760;
+  letter-spacing: -0.015em;
+  cursor: pointer;
+  transition: transform 180ms ease, background-color 180ms ease;
 }
 
-body.mini-app .landing-all-steps {
-  width: 100%;
-  border: 1px solid var(--border);
-  background: #1a1f26;
-  color: var(--text);
+body.mini-app .landing-continue-button:hover {
+  background: #e5e5e7;
+  transform: translateY(-1px);
 }
 
-body.mini-app .landing-search input {
-  min-height: 66px;
-  margin: 0;
-  border-color: rgba(255, 255, 255, 0.13);
-  border-radius: 18px;
-  background: #1a1f26;
-  color: var(--text);
-  font-size: clamp(1.2rem, 5vw, 1.7rem);
-}
-
-body.mini-app .landing-search input::placeholder {
-  color: var(--muted-2);
-}
-
-body.mini-app .landing-footer {
-  flex-wrap: wrap;
-  justify-content: center;
-  padding: 12px 0 4px;
-  text-align: center;
-}
-
-body.mini-app .landing-footer span {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--muted-2);
-}
-
-body.mini-app .landing-icon-button:focus-visible,
-body.mini-app .landing-continue-button:focus-visible,
-body.mini-app .landing-all-steps:focus-visible {
+body.mini-app .landing-continue-button:focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.22);
   outline-offset: 2px;
 }
 
+body.mini-app .landing-continue-button:active {
+  transform: scale(0.985);
+}
+
 body.mini-app .course-steps {
-  background: #20242c;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 body.mini-app .course-step-toggle {
-  min-height: 100px;
+  min-height: 88px;
+  padding: 18px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 body.mini-app .course-menu-intro {
-  padding-bottom: 28px;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 18px 2px 30px;
+}
+
+body.mini-app .course-menu-title {
+  gap: 0;
+}
+
+body.mini-app .course-menu-title::before {
+  display: none;
+}
+
+body.mini-app .course-menu-title strong {
+  margin: 0;
+  font-size: clamp(1.7rem, 7vw, 2.5rem);
+  font-weight: 650;
+}
+
+body.mini-app .course-menu-close {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 1.6rem;
+}
+
+body.mini-app .course-step-label {
+  font-size: 0.82rem;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+
+body.mini-app .course-step-title {
+  font-size: clamp(1.2rem, 5.2vw, 1.7rem);
+  font-weight: 620;
+}
+
+body.mini-app .course-step-arrow {
+  width: 40px;
+  height: 40px;
+  color: var(--muted);
+}
+
+body.mini-app .step-lessons {
+  padding: 4px 2px 18px;
+}
+
+body.mini-app .step-lesson {
+  min-height: 52px;
+  padding: 10px 0 10px 14px;
+  color: var(--muted);
+}
+
+body.mini-app .step-lesson-title {
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 500;
 }
 
 @media (min-width: 620px) {
@@ -1363,15 +1156,8 @@ body.mini-app .course-menu-intro {
     padding: 28px;
   }
 
-  body.mini-app .landing-product-card {
-    display: grid;
-    grid-template-columns: minmax(220px, 0.82fr) minmax(0, 1fr);
-  }
-
-  body.mini-app .landing-product-image {
-    min-height: 0;
-    height: 100%;
-    max-height: 260px;
+  body.mini-app .landing-product-body {
+    padding: 48px;
   }
 }
 
