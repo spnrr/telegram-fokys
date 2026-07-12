@@ -299,14 +299,7 @@ h1 {
   margin: 0 0 26px;
 }
 
-.lesson-text-block,
-.lesson-text-block * {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
 .lesson-text-content {
-  cursor: text;
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
@@ -407,41 +400,6 @@ h1 {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: space-between;
-}
-
-.highlight {
-  border-radius: 5px;
-  padding: 0 3px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-  cursor: text;
-}
-
-.highlight,
-mark.highlight,
-.lesson-text-block mark {
-  color: var(--text) !important;
-  -webkit-text-fill-color: var(--text) !important;
-}
-
-.highlight-yellow {
-  background: rgba(250, 204, 21, 0.60);
-}
-
-.highlight-green {
-  background: rgba(34, 197, 94, 0.55);
-}
-
-.highlight-blue {
-  background: rgba(59, 130, 246, 0.58);
-}
-
-.highlight-pink {
-  background: rgba(244, 114, 182, 0.58);
-}
-
-.highlight-purple {
-  background: rgba(168, 85, 247, 0.58);
 }
 
 .admin-shell {
@@ -950,18 +908,6 @@ body.mini-app .lesson p {
 
 body.mini-app .lesson-block {
   margin-bottom: 28px;
-}
-
-body.mini-app .lesson-text-block,
-body.mini-app .lesson-text-block * {
-  -webkit-touch-callout: default;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-body.mini-app .lesson-text-content {
-  cursor: text;
-  touch-action: auto;
 }
 
 body.mini-app .lesson-image {

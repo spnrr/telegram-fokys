@@ -8,7 +8,6 @@ const eyebrow = document.querySelector("#eyebrow");
 const backButton = document.querySelector("#backButton");
 const topbar = document.querySelector(".topbar");
 const MINI_APP_DARK_COLOR = "#0b0d0f";
-const HIGHLIGHT_COLORS = ["yellow", "green", "blue", "pink", "purple"];
 
 const DEFAULT_COURSE_LANDING_CONFIG = {
   brandTitle: "Протокол 0.",
@@ -137,106 +136,16 @@ function saveLastLessonProgress(moduleId, lesson) {
   localStorage.setItem(LAST_LESSON_STORAGE_KEYS.openedAt, new Date().toISOString());
 }
 
-function getHighlightStorageKey(lessonId) {
-  return `lesson_highlights_${lessonId}`;
-}
-
-function makeHighlightId() {
-  if (window.crypto?.randomUUID) {
-    return window.crypto.randomUUID();
-  }
-  return `highlight_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-}
-
-function readLessonHighlights(lessonId = state.currentLessonId) {
-  if (lessonId === null || lessonId === undefined) {
-    return [];
-  }
-
-  try {
-    const raw = localStorage.getItem(getHighlightStorageKey(lessonId));
-    const parsed = JSON.parse(raw || "[]");
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .filter((item) => item && HIGHLIGHT_COLORS.includes(item.color))
-      .map((item) => ({
-        id: String(item.id || makeHighlightId()),
-        blockId: String(item.blockId),
-        startOffset: Number(item.startOffset),
-        endOffset: Number(item.endOffset),
-        color: item.color,
-      }))
-      .filter(
-        (item) =>
-          Number.isInteger(item.startOffset) &&
-          Number.isInteger(item.endOffset) &&
-          item.startOffset >= 0 &&
-          item.endOffset > item.startOffset
-      );
-  } catch {
-    return [];
-  }
-}
-
-function getBlockHighlights(blockId, textLength) {
-  const blockHighlights = readLessonHighlights()
-    .filter((highlight) => highlight.blockId === String(blockId))
-    .filter((highlight) => highlight.endOffset <= textLength)
-    .sort((left, right) => left.startOffset - right.startOffset || left.endOffset - right.endOffset);
-
-  const cleanHighlights = [];
-  let lastEnd = 0;
-  blockHighlights.forEach((highlight) => {
-    if (highlight.startOffset >= lastEnd) {
-      cleanHighlights.push(highlight);
-      lastEnd = highlight.endOffset;
-    }
-  });
-  return cleanHighlights;
-}
-
-function getBlockStorageId(block, index = 0) {
-  if (block.id !== null && block.id !== undefined) {
-    return String(block.id);
-  }
-  return `legacy-${index}`;
-}
-
-function renderTextBlockWithHighlights(blockElement, rawText) {
-  blockElement.replaceChildren();
+function renderTextBlock(blockElement, rawText) {
   const paragraph = document.createElement("p");
   paragraph.className = "lesson-text-content";
-  let cursor = 0;
-
-  getBlockHighlights(blockElement.dataset.blockId, rawText.length).forEach((highlight) => {
-    if (highlight.startOffset > cursor) {
-      paragraph.append(document.createTextNode(rawText.slice(cursor, highlight.startOffset)));
-    }
-
-    const mark = document.createElement("mark");
-    mark.className = `highlight highlight-${highlight.color}`;
-    mark.dataset.highlightId = highlight.id;
-    mark.dataset.blockId = String(blockElement.dataset.blockId);
-    mark.dataset.startOffset = String(highlight.startOffset);
-    mark.dataset.endOffset = String(highlight.endOffset);
-    mark.dataset.color = highlight.color;
-    mark.textContent = rawText.slice(highlight.startOffset, highlight.endOffset);
-    paragraph.append(mark);
-    cursor = highlight.endOffset;
-  });
-
-  if (cursor < rawText.length) {
-    paragraph.append(document.createTextNode(rawText.slice(cursor)));
-  }
-
+  paragraph.textContent = rawText;
   blockElement.append(paragraph);
 }
 
 function renderTextBlockContent(blockElement, block) {
   const rawText = block.rawText ?? String(block.content || "");
-  renderTextBlockWithHighlights(blockElement, rawText);
+  renderTextBlock(blockElement, rawText);
 }
 
 function showMessage(title, message, actionLabel = "", action = null) {
@@ -783,10 +692,7 @@ function getYouTubeEmbedUrl(url) {
 
 function appendTextBlock(article, block) {
   const blockElement = document.createElement("section");
-  blockElement.className = "lesson-block lesson-block-text lesson-text-block";
-  blockElement.dataset.blockId = block.highlightBlockId || getBlockStorageId(block);
-  blockElement.dataset.lessonId = String(state.currentLessonId);
-  blockElement.dataset.rawText = block.rawText ?? String(block.content || "");
+  blockElement.className = "lesson-block lesson-block-text";
   renderTextBlockContent(blockElement, block);
   article.append(blockElement);
 }
@@ -852,10 +758,9 @@ async function renderLesson(moduleId, lessonId) {
       fetchJson(`/api/lessons/${lessonId}`),
       fetchJson(`/api/lessons/${lessonId}/blocks`),
     ]);
-    state.currentBlocks = blocks.map((block, index) => ({
+    state.currentBlocks = blocks.map((block) => ({
       ...block,
       rawText: String(block.content || ""),
-      highlightBlockId: getBlockStorageId(block, index),
     }));
     saveLastLessonProgress(moduleId, lesson);
     setHeader(lesson.module_title || module?.title || "Урок", lesson.title, "Читайте в удобном темпе.");
