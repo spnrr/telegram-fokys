@@ -992,10 +992,28 @@ body.mini-app .landing-shell {
 }
 
 body.mini-app .landing-product-card {
+  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
   background: #161a1f;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+body.mini-app .landing-product-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 300px;
+  overflow: hidden;
+  background: #090b0e;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.mini-app .landing-product-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
 }
 
 body.mini-app .landing-product-body {
@@ -1029,17 +1047,9 @@ body.mini-app .landing-product-progress {
 
 body.mini-app .landing-product-meta {
   display: grid;
-  gap: 20px;
+  gap: 0;
   align-items: stretch;
-  padding-top: 26px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-body.mini-app .landing-product-meta span {
-  color: var(--text);
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  padding-top: 8px;
 }
 
 body.mini-app .landing-continue-button {

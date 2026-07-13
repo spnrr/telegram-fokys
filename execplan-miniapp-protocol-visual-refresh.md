@@ -22,6 +22,7 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 - [x] (2026-07-03 18:25Z) Unified course, lesson, admin, and Protocol Day surfaces around darker shared tokens, calmer radii, stronger CTA contrast, and more readable long-form text.
 - [x] (2026-07-03 18:25Z) Removed a non-functional landing profile button and added a frontend-only "Правила" tab to Protocol Day.
 - [x] (2026-07-12 00:00Z) Simplified the product entry screen and the course module menu into a mobile-first single-purpose interface without changing the API or navigation behavior.
+- [x] (2026-07-13 00:00Z) Replaced the legacy product name with “Вектор”, removed the obsolete price row and added the created compass artwork to the focused product card.
 
 ## Surprises & Discoveries
 
@@ -90,6 +91,10 @@ After this change, the Telegram Mini App should feel closer to a premium closed 
 - Decision: Reduce the product entry screen to one product surface and one primary action.
   Rationale: The previous landing screen repeated the product identity across a header, hero, tabs, image card, search field, and footer. The requested premium direction needs hierarchy through spacing and typography instead of duplicated content.
   Date/Author: 2026-07-12 / Codex
+
+- Decision: Use the created compass artwork as the single visual anchor of the product card and hide the legacy price row.
+  Rationale: The image communicates direction without adding interface noise, while the supplied `1000` value was not meaningful product information for this course entry point.
+  Date/Author: 2026-07-13 / Codex
 
 ## Outcomes & Retrospective
 
@@ -168,3 +173,5 @@ Revision note: Replaced the zero/Protocol-like hero with an original vector/comp
 Revision note: Added a full frontend UX/UI audit pass and implemented Priority 1 polish across course, lessons, admin, and Protocol Day while preserving backend, Railway startup, bot behavior, lessons, and highlight logic.
 
 Revision note: Simplified the product and module screens for the 2026-07-12 dark premium mobile refresh. Removed the hero, static product tabs, search, footer, extra module button, and redundant product imagery from the landing render while retaining the existing continue behavior and module navigation.
+
+Revision note: Reintroduced the created compass image as the one purposeful visual on the product card, renamed the legacy “Протокол 0.” display to “Вектор”, and removed the obsolete price row at the user's request.

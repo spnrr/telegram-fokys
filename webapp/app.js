@@ -17,7 +17,7 @@ const DEFAULT_COURSE_LANDING_CONFIG = {
   heroTitle: "ВЕКТОР",
   heroDescription: "Выберите направление и держите курс.",
   productImageUrl: "",
-  productTitle: "Протокол 0.",
+  productTitle: "Вектор",
   productDescription: "Ты уже здесь. Обратного пути нет.",
   productPrice: "Бесплатно",
   continueButtonText: "Продолжить",
@@ -397,6 +397,19 @@ function getHeroDisplayCopy() {
   };
 }
 
+function getCourseDisplayTitle() {
+  const configuredTitle = (courseLandingConfig.productTitle || "").trim();
+
+  // Старое сохранённое значение не должно оставаться в интерфейсе после
+  // переименования курса. Любое новое название из настроек по-прежнему можно
+  // использовать без изменения кода.
+  if (!configuredTitle || configuredTitle === "Протокол 0.") {
+    return "Вектор";
+  }
+
+  return configuredTitle;
+}
+
 function createLandingPlaceholder(label) {
   const placeholder = document.createElement("div");
   placeholder.className = "landing-image-placeholder";
@@ -460,11 +473,17 @@ function renderLandingScreen() {
   const productCard = document.createElement("article");
   productCard.className = "landing-product-card";
 
+  const productImage = createLandingImage(
+    courseLandingConfig.heroImageUrl || DEFAULT_COURSE_LANDING_CONFIG.heroImageUrl,
+    "landing-product-image",
+    "Вектор",
+  );
+
   const productBody = document.createElement("div");
   productBody.className = "landing-product-body";
 
   const productTitle = document.createElement("h3");
-  productTitle.textContent = courseLandingConfig.productTitle;
+  productTitle.textContent = getCourseDisplayTitle();
 
   const productDescription = document.createElement("p");
   productDescription.textContent = courseLandingConfig.productDescription;
@@ -477,8 +496,6 @@ function renderLandingScreen() {
 
   const productMeta = document.createElement("div");
   productMeta.className = "landing-product-meta";
-  const price = document.createElement("span");
-  price.textContent = courseLandingConfig.productPrice;
 
   const continueButton = document.createElement("button");
   continueButton.className = "landing-continue-button";
@@ -490,9 +507,9 @@ function renderLandingScreen() {
     });
   });
 
-  productMeta.append(price, continueButton);
+  productMeta.append(continueButton);
   productBody.append(productTitle, productDescription, progress, productMeta);
-  productCard.append(productBody);
+  productCard.append(productImage, productBody);
 
   shell.append(productCard);
   content.append(shell);
@@ -531,7 +548,7 @@ function renderModuleSteps(resetLessonState = true) {
   menuTitle.className = "course-menu-title";
 
   const menuName = document.createElement("strong");
-  menuName.textContent = courseLandingConfig.productTitle || "Протокол 0.";
+  menuName.textContent = getCourseDisplayTitle();
 
   menuTitle.append(menuName);
   menuIntro.append(closeMenu, menuTitle);
